@@ -160,16 +160,25 @@ fn generate(root: &Path, config: &Config, site_url: &str, cache_components: bool
     if build_cache.exists() {
         fs::remove_dir_all(&build_cache)?;
     }
-    if !cache_components {
-        project::update_file(&root.join("next.config.ts"), |content| {
-            if !content.contains("cacheComponents: true") {
-                bail!("next.config.ts does not enable cacheComponents as expected");
-            }
-            Ok(content
-                .replace("cacheComponents: true", "cacheComponents: false")
-                .replace("  partialPrefetching: true,\n", ""))
-        })?;
-    }
+    project::update_file(&root.join("next.config.ts"), |content| {
+        if !content.contains("const nextConfig: NextConfig = {") {
+            bail!("next.config.ts has an unexpected shape; cannot add the root redirect");
+        }
+        let redirect = format!(
+            "const nextConfig: NextConfig = {{\n  async redirects() {{\n    return [{{ source: \"/\", destination: \"/{}\", permanent: false }}];\n  }},",
+            config.languages[0]
+        );
+        let content = content.replace("const nextConfig: NextConfig = {", &redirect);
+        if cache_components {
+            return Ok(content);
+        }
+        if !content.contains("cacheComponents: true") {
+            bail!("next.config.ts does not enable cacheComponents as expected");
+        }
+        Ok(content
+            .replace("cacheComponents: true", "cacheComponents: false")
+            .replace("  partialPrefetching: true,\n", ""))
+    })?;
 
     let env_file = root.join(".env");
     if env_file.exists() {
@@ -202,11 +211,10 @@ fn generate(root: &Path, config: &Config, site_url: &str, cache_components: bool
     }
     project::create_file(&root.join("app/sitemap.ts"), &templates::sitemap())?;
     project::create_file(&root.join("app/robots.ts"), &templates::robots())?;
-    for locale in languages {
-        project::create_file(
-            &add::layout_file(root, locale, default),
-            &templates::layout(locale),
-        )?;
-    }
+    project::create_file(&root.join("app/[locale]/layout.tsx"), &templates::layout())?;
+    project::create_file(
+        &root.join("components/language-switcher.tsx"),
+        &templates::language_switcher(),
+    )?;
     add::write_page(root, languages, "home")
 }

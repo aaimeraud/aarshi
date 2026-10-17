@@ -36,10 +36,12 @@ export const direction: Record<Locale, "ltr" | "rtl"> = {
 __DIRECTIONS__
 };
 
+export const isLocale = (value: string): value is Locale => {
+  return (languages as readonly string[]).includes(value);
+};
+
+/** Public URL of a page within a locale, e.g. pagePath("fr", "/about") === "/fr/about". */
 export const pagePath = (locale: Locale, path: string): string => {
-  if (locale === defaultLocale) {
-    return path;
-  }
   return path === "/" ? `/${locale}` : `/${locale}${path}`;
 };
 "#,
@@ -61,10 +63,11 @@ pub fn i18n_index(languages: &[String]) -> String {
     let map = languages.join(", ");
     fill(
         r#"import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 import { SITE_URL } from "@/lib/site";
 
-import { languages, pagePath, type Locale } from "./config";
+import { isLocale, languages, pagePath, type Locale } from "./config";
 __IMPORTS__
 
 export * from "./config";
@@ -75,6 +78,15 @@ const messages = { __MAP__ } satisfies Record<Locale, Record<MessageKey, string>
 
 export const t = (locale: Locale, key: MessageKey): string => {
   return messages[locale][key];
+};
+
+/** Reads the `[locale]` route param. Unknown languages get a 404. */
+export const resolveLocale = async (params: Promise<{ locale: string }>): Promise<Locale> => {
+  const { locale } = await params;
+  if (!isLocale(locale)) {
+    notFound();
+  }
+  return locale;
 };
 
 export const pageMetadata = (locale: Locale, path: string): Metadata => {
@@ -151,25 +163,101 @@ export default robots;
     .to_string()
 }
 
-pub fn layout(locale: &str) -> String {
-    let dir = if is_rtl(locale) { "rtl" } else { "ltr" };
-    fill(
-        r#"import type { ReactNode } from "react";
+/// One root layout for every language: `lang` and `dir` follow the `[locale]` segment,
+/// so switching language is a client-side navigation.
+pub fn layout() -> String {
+    r#"import type { ReactNode } from "react";
 
 import "@/app/globals.css";
+import LanguageSwitcher from "@/components/language-switcher";
+import { resolveLocale } from "@/lib/i18n";
+import { direction, languages } from "@/lib/i18n/config";
 
-const RootLayout = ({ children }: { children: ReactNode }) => {
+export const generateStaticParams = () => {
+  return languages.map((locale) => ({ locale }));
+};
+
+const RootLayout = async ({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ locale: string }>;
+}) => {
+  const locale = await resolveLocale(params);
   return (
-    <html lang="__LOCALE__" dir="__DIR__">
-      <body>{children}</body>
+    <html lang={locale} dir={direction[locale]}>
+      <body>
+        <header className="flex justify-end p-4">
+          <LanguageSwitcher locale={locale} />
+        </header>
+        {children}
+      </body>
     </html>
   );
 };
 
 export default RootLayout;
-"#,
-        &[("LOCALE", locale), ("DIR", dir)],
-    )
+"#
+    .to_string()
+}
+
+/// Language picker. Client-side links, so switching does not reload the page.
+pub fn language_switcher() -> String {
+    r#""use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+
+import { languages, type Locale } from "@/lib/i18n/config";
+
+const languageName = (code: string, locale: string): string => {
+  return new Intl.DisplayNames([locale], { type: "language" }).of(code) ?? code;
+};
+
+const LanguageSwitcher = ({ locale }: { locale: Locale }) => {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  // "/fr/about" keeps the page part "about", so the same page opens in the other language.
+  const page = pathname.split("/").slice(2).join("/");
+  const hrefFor = (code: Locale) => (page ? `/${code}/${page}` : `/${code}`);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((value) => !value)}
+        className="rounded-md border px-3 py-1.5 text-sm"
+      >
+        {languageName(locale, locale)}
+      </button>
+      {open && (
+        <ul className="absolute right-0 mt-2 min-w-40 rounded-md border bg-white p-1 text-sm shadow dark:bg-neutral-900">
+          {languages.map((code) => (
+            <li key={code}>
+              <Link
+                href={hrefFor(code)}
+                hrefLang={code}
+                aria-current={code === locale ? "true" : undefined}
+                onClick={() => setOpen(false)}
+                className="block rounded px-3 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              >
+                {languageName(code, code)}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+export default LanguageSwitcher;
+"#
+    .to_string()
 }
 
 pub fn view(page: &str) -> String {
@@ -198,18 +286,23 @@ export default __COMPONENT__View;
     )
 }
 
-pub fn route(locale: &str, page: &str, route_path: &str) -> String {
+pub fn route(page: &str, route_path: &str) -> String {
     let component = crate::project::to_pascal_case(page);
     fill(
         r#"import type { Metadata } from "next";
 
-import { pageMetadata } from "@/lib/i18n";
+import { pageMetadata, resolveLocale } from "@/lib/i18n";
 import __COMPONENT__View from "@/views/__PAGE__/__PAGE__.view";
 
-export const metadata: Metadata = pageMetadata("__LOCALE__", "__PATH__");
+type Props = { params: Promise<{ locale: string }> };
 
-const Page = () => {
-  return <__COMPONENT__View locale="__LOCALE__" />;
+export const generateMetadata = async ({ params }: Props): Promise<Metadata> => {
+  return pageMetadata(await resolveLocale(params), "__PATH__");
+};
+
+const Page = async ({ params }: Props) => {
+  const locale = await resolveLocale(params);
+  return <__COMPONENT__View locale={locale} />;
 };
 
 export default Page;
@@ -217,7 +310,6 @@ export default Page;
         &[
             ("COMPONENT", &component),
             ("PAGE", page),
-            ("LOCALE", locale),
             ("PATH", route_path),
         ],
     )

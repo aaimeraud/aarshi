@@ -10,7 +10,7 @@ echo "$@" > "$AARSHI_TEST_LOG"
 echo "$NEXT_TELEMETRY_DISABLED" >> "$AARSHI_TEST_LOG"
 mkdir -p "$3/app"
 touch "$3/app/layout.tsx" "$3/app/page.tsx"
-printf 'const nextConfig = {\n  cacheComponents: true,\n};\n\nexport default nextConfig;\n' > "$3/next.config.ts"
+printf 'import type { NextConfig } from "next";\n\nconst nextConfig: NextConfig = {\n  cacheComponents: true,\n};\n\nexport default nextConfig;\n' > "$3/next.config.ts"
 "#;
 
 struct Sandbox {
@@ -129,12 +129,12 @@ fn setup_puts_the_default_language_at_root_and_others_under_their_prefix() {
     let sandbox = Sandbox::new("setup-routes");
     let project = sandbox.setup("site", &[]);
 
-    assert!(project.join("app/(fr)/layout.tsx").exists());
-    assert!(project.join("app/(fr)/page.tsx").exists());
-    assert!(project.join("app/(en)/en/layout.tsx").exists());
-    assert!(project.join("app/(en)/en/page.tsx").exists());
-    assert!(!project.join("app/(fr)/fr").exists());
+    assert!(project.join("app/[locale]/layout.tsx").exists());
+    assert!(project.join("app/[locale]/page.tsx").exists());
+    assert!(!project.join("app/(fr)").exists());
     assert!(read(&project.join("lib/i18n/config.ts")).contains("defaultLocale: Locale = \"fr\""));
+    let config = read(&project.join("next.config.ts"));
+    assert!(config.contains("destination: \"/fr\""), "{config}");
 }
 
 #[test]
@@ -165,7 +165,7 @@ fn user_config_sets_languages_and_direction() {
     assert!(config.contains("package_manager = \"bun\""), "{config}");
     assert!(read(&sandbox.log).contains("--use-bun"));
     assert!(read(&project.join("lib/i18n/config.ts")).contains("ar: \"rtl\""));
-    assert!(read(&project.join("app/(ar)/layout.tsx")).contains("dir=\"rtl\""));
+    assert!(read(&project.join("app/[locale]/layout.tsx")).contains("dir={direction[locale]}"));
 }
 
 #[test]
@@ -177,8 +177,7 @@ fn add_page_creates_view_routes_keys_and_sitemap_entry() {
     assert!(output.status.success(), "{}", stderr(&output));
 
     assert!(project.join("views/about/about.view.tsx").exists());
-    assert!(project.join("app/(fr)/about/page.tsx").exists());
-    assert!(project.join("app/(en)/en/about/page.tsx").exists());
+    assert!(project.join("app/[locale]/about/page.tsx").exists());
     assert!(read(&project.join("app/sitemap.ts")).contains("\"/about\","));
     assert!(read(&project.join("lib/i18n/dictionaries/fr.ts")).contains("\"about.title\": \"\","));
     assert!(read(&project.join("lib/i18n/dictionaries/en.ts")).contains("\"about.title\": \"\","));
@@ -230,7 +229,7 @@ fn add_refuses_to_overwrite_an_existing_page() {
 }
 
 #[test]
-fn add_lang_creates_dictionary_routes_and_layout_for_existing_pages() {
+fn add_lang_creates_dictionary_and_updates_config_without_new_routes() {
     let sandbox = Sandbox::new("add-lang");
     let project = sandbox.setup("site", &[]);
     assert!(sandbox.add(&project, &["-p", "about"]).status.success());
@@ -245,9 +244,8 @@ fn add_lang_creates_dictionary_routes_and_layout_for_existing_pages() {
         "{dictionary}"
     );
     assert!(dictionary.contains("\"home.title\": \"\","), "{dictionary}");
-    assert!(project.join("app/(de)/de/layout.tsx").exists());
-    assert!(project.join("app/(de)/de/page.tsx").exists());
-    assert!(project.join("app/(de)/de/about/page.tsx").exists());
+    assert!(!project.join("app/(de)").exists());
+    assert!(project.join("app/[locale]/about/page.tsx").exists());
     assert!(
         read(&project.join("lib/i18n/config.ts"))
             .contains("\"fr\", \"en\", \"es\", \"ko\", \"de\"")
@@ -313,7 +311,6 @@ fn add_reads_the_languages_written_at_setup() {
     let project = sandbox.setup("site", &[]);
 
     assert!(sandbox.add(&project, &["-p", "about"]).status.success());
-    assert!(project.join("app/(ar)/about/page.tsx").exists());
-    assert!(project.join("app/(en)/en/about/page.tsx").exists());
-    assert!(!project.join("app/(en)/about").exists());
+    assert!(project.join("app/[locale]/about/page.tsx").exists());
+    assert!(read(&project.join("lib/i18n/config.ts")).contains("\"ar\", \"en\""));
 }

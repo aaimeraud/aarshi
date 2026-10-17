@@ -14,7 +14,7 @@ Every command asks for the values it needs when they are not given as arguments.
 - `aarshi add`: asks whether to add a section or a page, then asks for the names.
 - `aarshi add -s <section> <page>`: adds a section to a page. If the page does not exist, it reports the error and asks whether to create it (y/n).
 - `aarshi add -p <page>`: adds a page.
-- `aarshi add-lang <code>`: adds a language (e.g. `de`) to an existing project. Creates its dictionary with empty values, its routes and its layout.
+- `aarshi add-lang <code>`: adds a language (e.g. `de`) to an existing project. Creates its dictionary with empty values and updates the language list.
 - `aarshi check`: lists empty translations, missing keys and missing routes. Changes nothing, and exits with an error when it finds a problem.
 
 External components (shadcn) are not supported yet.
@@ -23,7 +23,8 @@ External components (shadcn) are not supported yet.
 
 - Created with `create-next-app`, using explicit flags: TypeScript, Tailwind, App Router, no `src/`, ESLint, `AGENTS.md`. Agent feedback and Cache Components are off by default and can be enabled by a flag.
 - Telemetry is disabled for the project: `NEXT_TELEMETRY_DISABLED=1` is set during creation and written to the project's `.env`. The global Next.js configuration is not changed.
-- Languages: fr, en, es, ko by default. The list is set in the user config (`~/.config/aarshi/config.toml`) and can be overridden per project by `aarshi.toml` at the project root, which replaces the list. The first language is the default one, served at the root. Text direction is derived per language (ar, he, fa are RTL).
+- Languages: fr, en, es, ko by default. The list is set in the user config (`~/.config/aarshi/config.toml`) and can be overridden per project by `aarshi.toml` at the project root, which replaces the list. Every language has a prefix (`/fr`, `/en`), and `/` redirects to the first language. Text direction is derived per language (ar, he, fa are RTL).
+- One root layout under `app/[locale]/` sets `lang` and `dir`. A language switcher in the header changes language with client-side navigation, so the page does not reload.
 - The sitemap is updated through comment markers in `app/sitemap.ts`.
 
 ## Install

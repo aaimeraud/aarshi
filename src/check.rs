@@ -53,10 +53,8 @@ pub fn run() -> Result<()> {
 
     for page in dictionary::pages(&root)? {
         let route_path = add::route_path(&page);
-        for locale in &config.languages {
-            if !add::route_file(&root, locale, &default, &route_path).exists() {
-                problems.push(format!("{locale}: missing route for `{route_path}`"));
-            }
+        if !add::route_file(&root, &route_path).exists() {
+            problems.push(format!("missing route for `{route_path}`"));
         }
     }
 

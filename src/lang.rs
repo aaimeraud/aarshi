@@ -4,7 +4,6 @@ use anyhow::{Result, bail};
 use inquire::Text;
 
 use crate::{
-    add,
     config::{self, Config, PROJECT_CONFIG_FILE},
     dictionary, project,
     templates::{self, MESSAGES_MARKER},
@@ -32,7 +31,6 @@ pub fn run(code: Option<String>) -> Result<()> {
         .into_iter()
         .map(|entry| entry.key)
         .collect();
-    let pages = dictionary::pages(&root)?;
     let mut languages = config.languages.clone();
     languages.push(code.clone());
 
@@ -45,18 +43,6 @@ pub fn run(code: Option<String>) -> Result<()> {
             project::insert_before_marker(content, MESSAGES_MARKER, &format!("\"{key}\": \"\","))
         })?;
     }
-    for page in &pages {
-        let route_path = add::route_path(page);
-        project::create_file(
-            &add::route_file(&root, &code, &default, &route_path),
-            &templates::route(&code, page, &route_path),
-        )?;
-    }
-    project::create_file(
-        &add::layout_file(&root, &code, &default),
-        &templates::layout(&code),
-    )?;
-
     std::fs::write(
         root.join("lib/i18n/config.ts"),
         templates::i18n_config(&languages),

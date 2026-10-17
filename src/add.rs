@@ -78,22 +78,16 @@ pub fn create_page(root: &Path, languages: &[String], page: &str) -> Result<()> 
 /// Writes the view and one route per language. Keys are added to every dictionary.
 pub fn write_page(root: &Path, languages: &[String], page: &str) -> Result<()> {
     let route_path = route_path(page);
-    let default = &languages[0];
     let view = view_file(root, page);
-    let routes: Vec<PathBuf> = languages
-        .iter()
-        .map(|locale| route_file(root, locale, default, &route_path))
-        .collect();
-    for path in std::iter::once(&view).chain(routes.iter()) {
+    let route = route_file(root, &route_path);
+    for path in [&view, &route] {
         if path.exists() {
             bail!("{} already exists", path.display());
         }
     }
 
     project::create_file(&view, &templates::view(page))?;
-    for (locale, route) in languages.iter().zip(&routes) {
-        project::create_file(route, &templates::route(locale, page, &route_path))?;
-    }
+    project::create_file(&route, &templates::route(page, &route_path))?;
     for locale in languages {
         let key = format!("\"{page}.title\": \"\",");
         project::update_file(&dictionary::file(root, locale), |content| {
@@ -160,24 +154,12 @@ fn view_file(root: &Path, page: &str) -> PathBuf {
         .join(format!("{page}.view.tsx"))
 }
 
-/// The default language lives in the root group, others under `/<locale>`.
-pub fn route_file(root: &Path, locale: &str, default: &str, route_path: &str) -> PathBuf {
-    let mut path = root.join("app").join(format!("({locale})"));
-    if locale != default {
-        path.push(locale);
-    }
+/// Every language shares one route tree, under the `[locale]` segment.
+pub fn route_file(root: &Path, route_path: &str) -> PathBuf {
+    let mut path = root.join("app/[locale]");
     for segment in route_path.split('/').filter(|s| !s.is_empty()) {
         path.push(segment);
     }
     path.push("page.tsx");
-    path
-}
-
-pub fn layout_file(root: &Path, locale: &str, default: &str) -> PathBuf {
-    let mut path = root.join("app").join(format!("({locale})"));
-    if locale != default {
-        path.push(locale);
-    }
-    path.push("layout.tsx");
     path
 }
