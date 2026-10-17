@@ -202,14 +202,16 @@ export default RootLayout;
     .to_string()
 }
 
-/// Language picker. Client-side links, so switching does not reload the page.
+/// Language picker built from `ButtonGroup`. Base UI warns against rendering a `Button`
+/// as a link, so the links take the button styles instead. Client navigation, no reload.
 pub fn language_switcher() -> String {
     r#""use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 
+import { buttonVariants } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { languages, type Locale } from "@/lib/i18n/config";
 
 const languageName = (code: string, locale: string): string => {
@@ -218,46 +220,136 @@ const languageName = (code: string, locale: string): string => {
 
 const LanguageSwitcher = ({ locale }: { locale: Locale }) => {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  // "/fr/about" keeps the page part "about", so the same page opens in the other language.
+  // "/fr/about" keeps "about", so the same page opens in the other language.
   const page = pathname.split("/").slice(2).join("/");
   const hrefFor = (code: Locale) => (page ? `/${code}/${page}` : `/${code}`);
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-haspopup="true"
-        onClick={() => setOpen((value) => !value)}
-        className="rounded-md border px-3 py-1.5 text-sm"
-      >
-        {languageName(locale, locale)}
-      </button>
-      {open && (
-        <ul className="absolute right-0 mt-2 min-w-40 rounded-md border bg-white p-1 text-sm shadow dark:bg-neutral-900">
-          {languages.map((code) => (
-            <li key={code}>
-              <Link
-                href={hrefFor(code)}
-                hrefLang={code}
-                aria-current={code === locale ? "true" : undefined}
-                onClick={() => setOpen(false)}
-                className="block rounded px-3 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-              >
-                {languageName(code, code)}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <ButtonGroup aria-label="Language">
+      {languages.map((code) => (
+        <Link
+          key={code}
+          href={hrefFor(code)}
+          hrefLang={code}
+          data-slot="button"
+          aria-current={code === locale ? "true" : undefined}
+          className={buttonVariants({
+            variant: code === locale ? "secondary" : "ghost",
+            size: "sm",
+          })}
+        >
+          {languageName(code, code)}
+        </Link>
+      ))}
+    </ButtonGroup>
   );
 };
 
 export default LanguageSwitcher;
 "#
     .to_string()
+}
+
+/// Written when the project uses Base UI without shadcn. Exposes the same props as the
+/// shadcn button so the generated code does not depend on which one is installed.
+pub fn button() -> String {
+    r#"import { Button as ButtonPrimitive } from "@base-ui/react/button";
+
+import { cn } from "@sglara/cn";
+
+const variantClasses = {
+  default: "bg-neutral-900 text-white hover:bg-neutral-800",
+  secondary: "bg-neutral-100 text-neutral-900 hover:bg-neutral-200",
+  ghost: "hover:bg-neutral-100",
+  outline: "border border-neutral-300 hover:bg-neutral-100",
+} as const;
+
+const sizeClasses = {
+  default: "h-9 px-4 text-sm",
+  sm: "h-8 px-3 text-sm",
+  icon: "size-8",
+} as const;
+
+type ButtonVariantProps = {
+  className?: string;
+  variant?: keyof typeof variantClasses;
+  size?: keyof typeof sizeClasses;
+};
+
+/// Same idea as the shadcn `buttonVariants`, so a `<Link>` can look like a button.
+export const buttonVariants = ({
+  className,
+  variant = "default",
+  size = "default",
+}: ButtonVariantProps = {}) => {
+  return cn(
+    "inline-flex shrink-0 items-center justify-center gap-2 rounded-md font-medium transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-neutral-400 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0",
+    variantClasses[variant],
+    sizeClasses[size],
+    className,
+  );
+};
+
+type ButtonProps = Omit<ButtonPrimitive.Props, "className"> & ButtonVariantProps;
+
+const Button = ({ className, variant = "default", size = "default", ...props }: ButtonProps) => {
+  return (
+    <ButtonPrimitive
+      data-slot="button"
+      className={buttonVariants({ variant, size, className })}
+      {...props}
+    />
+  );
+};
+
+export { Button };
+"#
+    .to_string()
+}
+
+pub fn button_group() -> String {
+    r#"import type { ComponentProps } from "react";
+
+import { cn } from "@sglara/cn";
+
+const ButtonGroup = ({ className, ...props }: ComponentProps<"div">) => {
+  return (
+    <div
+      role="group"
+      data-slot="button-group"
+      className={cn(
+        "flex w-fit items-stretch [&>*:not(:first-child)]:rounded-l-none [&>*:not(:last-child)]:rounded-r-none",
+        className,
+      )}
+      {...props}
+    />
+  );
+};
+
+export { ButtonGroup };
+"#
+    .to_string()
+}
+
+/// A component in `components/custom/`. Intentionally minimal: a styled wrapper to fill in.
+pub fn custom_component(name: &str) -> String {
+    let component = crate::project::to_pascal_case(name);
+    fill(
+        r#"import type { ReactNode } from "react";
+
+import { cn } from "@sglara/cn";
+
+type __COMPONENT__Props = {
+  className?: string;
+  children?: ReactNode;
+};
+
+export const __COMPONENT__ = ({ className, children }: __COMPONENT__Props) => {
+  return <div className={cn(className)}>{children}</div>;
+};
+"#,
+        &[("COMPONENT", &component)],
+    )
 }
 
 pub fn view(page: &str) -> String {

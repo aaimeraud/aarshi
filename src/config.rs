@@ -6,7 +6,16 @@ use serde::Deserialize;
 pub const PROJECT_CONFIG_FILE: &str = "aarshi.toml";
 pub const PACKAGE_MANAGERS: &[&str] = &["npm", "pnpm", "yarn", "bun"];
 
-const DEFAULT_LANGUAGES: &[&str] = &["fr", "en", "es", "ko"];
+/// Languages offered by `setup`, as (code, name in that language).
+pub const SUPPORTED_LANGUAGES: &[(&str, &str)] = &[
+    ("fr", "Français"),
+    ("en", "English"),
+    ("es", "Español"),
+    ("ja", "日本語"),
+    ("ko", "한국어"),
+    ("de", "Deutsch"),
+];
+const DEFAULT_LANGUAGES: &[&str] = &["fr", "en"];
 const DEFAULT_PACKAGE_MANAGER: &str = "npm";
 const RTL_LANGUAGES: &[&str] = &["ar", "he", "fa"];
 
@@ -93,7 +102,7 @@ pub fn validate_package_manager(manager: &str) -> Result<()> {
     Ok(())
 }
 
-fn validate_languages(languages: &[String]) -> Result<()> {
+pub fn validate_languages(languages: &[String]) -> Result<()> {
     if languages.is_empty() {
         bail!("`languages` must contain at least one language");
     }

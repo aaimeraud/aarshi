@@ -9,17 +9,27 @@ use inquire::{MultiSelect, Select, Text};
 
 use crate::{
     add,
-    config::{Config, PACKAGE_MANAGERS, PROJECT_CONFIG_FILE},
+    config::{self, Config, PACKAGE_MANAGERS, PROJECT_CONFIG_FILE, SUPPORTED_LANGUAGES},
     project, templates,
 };
 
 const DEFAULT_SITE_URL: &str = "http://localhost:3000";
 const AGENT_FEEDBACK: &str = "Agent feedback";
 const CACHE_COMPONENTS: &str = "Cache Components";
+const UI_SHADCN: &str = "shadcn";
+const UI_BASE: &str = "base-ui";
+const ICONS_LUCIDE: &str = "lucide";
+const ICONS_NONE: &str = "none";
+/// Class helper, used by the switcher, the icons and the custom components.
+const CN_PACKAGE: &str = "@sglara/cn";
 
 pub struct SetupOptions {
     pub dir: Option<String>,
     pub package_manager: Option<String>,
+    pub languages: Option<Vec<String>>,
+    pub default_language: Option<String>,
+    pub ui: Option<String>,
+    pub icons: Option<String>,
     pub agent_feedback: bool,
     pub cache_components: bool,
     pub site_url: Option<String>,
@@ -28,25 +38,32 @@ pub struct SetupOptions {
 
 pub fn run(options: SetupOptions) -> Result<()> {
     let user = Config::user()?;
-    let dir = match options.dir {
-        Some(dir) => dir,
+    let dir = match &options.dir {
+        Some(dir) => dir.clone(),
         None if options.yes => bail!("a project folder is required with --yes"),
         None => Text::new("Project folder name").prompt()?,
     };
     let root = target_root(&dir)?;
-    let site_url = match options.site_url {
-        Some(url) => url,
+    let languages = select_languages(&options, &user)?;
+    let default = select_default_language(&options, &languages)?;
+    // The default language comes first: it is the one the dictionaries are typed from.
+    let mut languages = languages;
+    languages.sort_by_key(|language| language != &default);
+    let site_url = match &options.site_url {
+        Some(url) => url.clone(),
         None if options.yes => DEFAULT_SITE_URL.to_string(),
         None => Text::new("Site URL")
             .with_default(DEFAULT_SITE_URL)
             .prompt()?,
     };
     let site_url = normalize_site_url(&site_url)?;
-    let manager = match options.package_manager {
-        Some(manager) => manager,
+    let manager = match &options.package_manager {
+        Some(manager) => manager.clone(),
         None if options.yes => user.package_manager.clone(),
         None => select_package_manager(&user.package_manager)?,
     };
+    let ui = select_ui(&options)?;
+    let icons = select_icons(&options)?;
     let (agent_feedback, cache_components) =
         if options.yes || options.agent_feedback || options.cache_components {
             (options.agent_feedback, options.cache_components)
@@ -55,11 +72,56 @@ pub fn run(options: SetupOptions) -> Result<()> {
         };
 
     create_next_app(&manager, &dir, agent_feedback, cache_components)?;
+    install_dependencies(&root, &manager, &ui, &icons)?;
+    create_component_folders(&root)?;
     let config = Config {
-        languages: user.languages,
+        languages,
         package_manager: manager,
     };
     generate(&root, &config, &site_url, cache_components)
+}
+
+/// The offered languages, preselected with the user config when it has some.
+fn select_languages(options: &SetupOptions, user: &Config) -> Result<Vec<String>> {
+    if let Some(languages) = &options.languages {
+        config::validate_languages(languages)?;
+        return Ok(languages.clone());
+    }
+    if options.yes {
+        return Ok(user.languages.clone());
+    }
+    let choices: Vec<(&str, String)> = SUPPORTED_LANGUAGES
+        .iter()
+        .map(|(code, name)| (*code, format!("{name} ({code})")))
+        .collect();
+    let labels: Vec<String> = choices.iter().map(|(_, label)| label.clone()).collect();
+    let preselected: Vec<usize> = choices
+        .iter()
+        .enumerate()
+        .filter_map(|(index, (code, _))| user.languages.iter().any(|l| l == code).then_some(index))
+        .collect();
+    let selected = MultiSelect::new("Languages", labels)
+        .with_default(&preselected)
+        .prompt()?;
+    if selected.is_empty() {
+        bail!("select at least one language");
+    }
+    let languages: Vec<String> = choices
+        .into_iter()
+        .filter(|(_, label)| selected.contains(label))
+        .map(|(code, _)| code.to_string())
+        .collect();
+    config::validate_languages(&languages)?;
+    Ok(languages)
+}
+
+fn select_default_language(options: &SetupOptions, languages: &[String]) -> Result<String> {
+    match &options.default_language {
+        Some(code) if languages.contains(code) => Ok(code.clone()),
+        Some(code) => bail!("default language `{code}` is not in the selected languages"),
+        None if options.yes => Ok(languages[0].clone()),
+        None => Ok(Select::new("Default language", languages.to_vec()).prompt()?),
+    }
 }
 
 fn select_package_manager(default: &str) -> Result<String> {
@@ -71,6 +133,48 @@ fn select_package_manager(default: &str) -> Result<String> {
         .with_starting_cursor(start)
         .prompt()?;
     Ok(choice.to_string())
+}
+
+fn select_ui(options: &SetupOptions) -> Result<String> {
+    if let Some(ui) = &options.ui {
+        if ui != UI_SHADCN && ui != UI_BASE {
+            bail!("unknown UI `{ui}` (expected `shadcn` or `base-ui`)");
+        }
+        return Ok(ui.clone());
+    }
+    if options.yes {
+        return Ok(UI_SHADCN.to_string());
+    }
+    let choice = Select::new(
+        "UI components",
+        vec!["shadcn (styled, Base UI based)", "Base UI (unstyled)"],
+    )
+    .prompt()?;
+    Ok(if choice.starts_with("shadcn") {
+        UI_SHADCN
+    } else {
+        UI_BASE
+    }
+    .to_string())
+}
+
+fn select_icons(options: &SetupOptions) -> Result<String> {
+    if let Some(icons) = &options.icons {
+        if icons != ICONS_LUCIDE && icons != ICONS_NONE {
+            bail!("unknown icon library `{icons}` (expected `lucide` or `none`)");
+        }
+        return Ok(icons.clone());
+    }
+    if options.yes {
+        return Ok(ICONS_LUCIDE.to_string());
+    }
+    let choice = Select::new("Icon library", vec!["lucide-react", "None"]).prompt()?;
+    Ok(if choice == "lucide-react" {
+        ICONS_LUCIDE
+    } else {
+        ICONS_NONE
+    }
+    .to_string())
 }
 
 fn select_features() -> Result<(bool, bool)> {
@@ -117,6 +221,75 @@ fn create_next_app(
         .with_context(|| format!("cannot run `{manager}`; is it installed?"))?;
     if !status.success() {
         bail!("`{manager} create next-app` failed");
+    }
+    Ok(())
+}
+
+/// Installs the class helper, the icon library and the UI components.
+fn install_dependencies(root: &Path, manager: &str, ui: &str, icons: &str) -> Result<()> {
+    let mut packages = vec![CN_PACKAGE.to_string()];
+    if icons == ICONS_LUCIDE {
+        packages.push("lucide-react".to_string());
+    }
+    if ui == UI_BASE {
+        packages.push("@base-ui/react".to_string());
+    }
+    let mut command = Command::new(manager);
+    command
+        .current_dir(root)
+        .arg("add")
+        .args(&packages)
+        .env("NEXT_TELEMETRY_DISABLED", "1");
+    let status = command
+        .status()
+        .with_context(|| format!("cannot run `{manager}`; is it installed?"))?;
+    if !status.success() {
+        bail!("`{manager} add {}` failed", packages.join(" "));
+    }
+
+    if ui == UI_SHADCN {
+        run_shadcn(root, manager, &["init", "--defaults", "--yes"])?;
+        run_shadcn(root, manager, &["add", "button", "button-group", "--yes"])?;
+    } else {
+        project::create_file(&root.join("components/ui/button.tsx"), &templates::button())?;
+        project::create_file(
+            &root.join("components/ui/button-group.tsx"),
+            &templates::button_group(),
+        )?;
+    }
+    Ok(())
+}
+
+fn run_shadcn(root: &Path, manager: &str, args: &[&str]) -> Result<()> {
+    let (bin, prefix): (&str, &[&str]) = match manager {
+        "pnpm" => ("pnpm", &["dlx"]),
+        "yarn" => ("yarn", &["dlx"]),
+        "bun" => ("bunx", &[]),
+        _ => ("npx", &["--yes"]),
+    };
+    let status = Command::new(bin)
+        .current_dir(root)
+        .args(prefix)
+        .arg("shadcn@latest")
+        .args(args)
+        .env("NEXT_TELEMETRY_DISABLED", "1")
+        .status()
+        .with_context(|| format!("cannot run `{bin}`; is it installed?"))?;
+    if !status.success() {
+        bail!("`shadcn {}` failed", args.join(" "));
+    }
+    Ok(())
+}
+
+/// `components/custom` and `components/icons`, kept in git with a `.gitkeep`.
+fn create_component_folders(root: &Path) -> Result<()> {
+    for dir in ["components/custom", "components/icons"] {
+        let path = root.join(dir);
+        fs::create_dir_all(&path).with_context(|| format!("cannot create {}", path.display()))?;
+        let keep = path.join(".gitkeep");
+        if !keep.exists() {
+            fs::write(&keep, "")?;
+        }
     }
     Ok(())
 }

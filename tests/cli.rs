@@ -4,13 +4,16 @@ use std::{
     process::{Command, Output},
 };
 
-/// Fake package manager: records its arguments and environment, then creates a bare Next.js project.
+/// Fake package manager: records its arguments and environment, creates a bare Next.js
+/// project on `create`, and does nothing on `add` (installations).
 const FAKE_NPM: &str = r#"#!/bin/sh
-echo "$@" > "$AARSHI_TEST_LOG"
+echo "$@" >> "$AARSHI_TEST_LOG"
 echo "$NEXT_TELEMETRY_DISABLED" >> "$AARSHI_TEST_LOG"
-mkdir -p "$3/app"
-touch "$3/app/layout.tsx" "$3/app/page.tsx"
-printf 'import type { NextConfig } from "next";\n\nconst nextConfig: NextConfig = {\n  cacheComponents: true,\n};\n\nexport default nextConfig;\n' > "$3/next.config.ts"
+if [ "$1" = "create" ]; then
+  mkdir -p "$3/app"
+  touch "$3/app/layout.tsx" "$3/app/page.tsx"
+  printf 'import type { NextConfig } from "next";\n\nconst nextConfig: NextConfig = {\n  cacheComponents: true,\n};\n\nexport default nextConfig;\n' > "$3/next.config.ts"
+fi
 "#;
 
 struct Sandbox {
@@ -54,8 +57,17 @@ impl Sandbox {
             .unwrap()
     }
 
+    /// `base-ui` keeps the tests offline: `shadcn` would need npx and the network.
     fn setup(&self, name: &str, extra: &[&str]) -> PathBuf {
-        let mut args = vec!["setup", name, "--site-url", "https://example.com/", "--yes"];
+        let mut args = vec![
+            "setup",
+            name,
+            "--site-url",
+            "https://example.com/",
+            "--ui",
+            "base-ui",
+            "--yes",
+        ];
         args.extend_from_slice(extra);
         let output = self.run(&self.root, &args);
         assert!(output.status.success(), "{}", stderr(&output));
@@ -101,6 +113,17 @@ fn setup_runs_create_next_app_with_explicit_flags_and_telemetry_off() {
 }
 
 #[test]
+fn setup_installs_the_class_helper_and_the_icon_library() {
+    let sandbox = Sandbox::new("setup-packages");
+    sandbox.setup("site", &[]);
+
+    let log = read(&sandbox.log);
+    assert!(log.contains("add @sglara/cn"), "{log}");
+    assert!(log.contains("lucide-react"), "{log}");
+    assert!(log.contains("@base-ui/react"), "{log}");
+}
+
+#[test]
 fn cache_components_are_off_unless_requested() {
     let sandbox = Sandbox::new("cache-components");
     let off = sandbox.setup("off", &[]);
@@ -117,11 +140,82 @@ fn setup_defaults_to_npm_and_writes_project_config() {
 
     assert!(read(&sandbox.log).contains("--use-npm"));
     let config = read(&project.join("aarshi.toml"));
-    assert!(
-        config.contains("languages = [\"fr\", \"en\", \"es\", \"ko\"]"),
-        "{config}"
-    );
+    assert!(config.contains("languages = [\"fr\", \"en\"]"), "{config}");
     assert!(config.contains("package_manager = \"npm\""), "{config}");
+}
+
+#[test]
+fn setup_writes_only_the_chosen_languages_with_the_default_first() {
+    let sandbox = Sandbox::new("setup-languages");
+    let project = sandbox.setup(
+        "site",
+        &["--languages", "fr,ja", "--default-language", "ja"],
+    );
+
+    let config = read(&project.join("aarshi.toml"));
+    assert!(config.contains("languages = [\"ja\", \"fr\"]"), "{config}");
+    assert!(project.join("lib/i18n/dictionaries/ja.ts").exists());
+    assert!(project.join("lib/i18n/dictionaries/fr.ts").exists());
+    assert!(!project.join("lib/i18n/dictionaries/en.ts").exists());
+    assert!(read(&project.join("lib/i18n/config.ts")).contains("defaultLocale: Locale = \"ja\""));
+    assert!(read(&project.join("lib/i18n/config.ts")).contains("ja: \"ltr\""));
+    assert!(read(&project.join("next.config.ts")).contains("destination: \"/ja\""));
+}
+
+#[test]
+fn setup_rejects_a_default_language_that_was_not_chosen() {
+    let sandbox = Sandbox::new("setup-default-unknown");
+    let output = sandbox.run(
+        &sandbox.root,
+        &[
+            "setup",
+            "site",
+            "--site-url",
+            "https://example.com",
+            "--languages",
+            "fr,en",
+            "--default-language",
+            "de",
+            "--ui",
+            "base-ui",
+            "--yes",
+        ],
+    );
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("not in the selected languages"));
+}
+
+#[test]
+fn setup_writes_the_base_ui_button_and_the_class_helper() {
+    let sandbox = Sandbox::new("setup-ui");
+    let project = sandbox.setup("site", &[]);
+
+    let button = read(&project.join("components/ui/button.tsx"));
+    assert!(button.contains("@base-ui/react/button"), "{button}");
+    assert!(button.contains("from \"@sglara/cn\""), "{button}");
+    assert!(read(&project.join("components/ui/button-group.tsx")).contains("ButtonGroup"));
+    assert!(!project.join("lib/utils.ts").exists());
+    assert!(project.join("components/custom/.gitkeep").exists());
+    assert!(project.join("components/icons/.gitkeep").exists());
+}
+
+#[test]
+fn setup_rejects_an_unknown_ui() {
+    let sandbox = Sandbox::new("setup-ui-unknown");
+    let output = sandbox.run(
+        &sandbox.root,
+        &[
+            "setup",
+            "site",
+            "--site-url",
+            "https://example.com",
+            "--ui",
+            "chakra",
+            "--yes",
+        ],
+    );
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("unknown UI"));
 }
 
 #[test]
@@ -135,6 +229,14 @@ fn setup_puts_the_default_language_at_root_and_others_under_their_prefix() {
     assert!(read(&project.join("lib/i18n/config.ts")).contains("defaultLocale: Locale = \"fr\""));
     let config = read(&project.join("next.config.ts"));
     assert!(config.contains("destination: \"/fr\""), "{config}");
+    assert!(
+        read(&project.join("components/language-switcher.tsx")).contains("ButtonGroup"),
+        "the switcher uses the UI components"
+    );
+    assert!(
+        read(&project.join("components/language-switcher.tsx")).contains("buttonVariants"),
+        "links take the button styles"
+    );
 }
 
 #[test]
@@ -184,6 +286,30 @@ fn add_page_creates_view_routes_keys_and_sitemap_entry() {
 }
 
 #[test]
+fn add_component_creates_a_starter_in_components_custom() {
+    let sandbox = Sandbox::new("add-component");
+    let project = sandbox.setup("site", &[]);
+
+    let output = sandbox.add(&project, &["-c", "tag"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+
+    let component = read(&project.join("components/custom/tag.tsx"));
+    assert!(component.contains("export const Tag ="), "{component}");
+    assert!(component.contains("from \"@sglara/cn\""), "{component}");
+}
+
+#[test]
+fn add_component_refuses_to_overwrite() {
+    let sandbox = Sandbox::new("add-component-twice");
+    let project = sandbox.setup("site", &[]);
+    assert!(sandbox.add(&project, &["-c", "tag"]).status.success());
+
+    let output = sandbox.add(&project, &["-c", "tag"]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("already exists"));
+}
+
+#[test]
 fn add_section_creates_component_and_keys_in_every_language() {
     let sandbox = Sandbox::new("add-section");
     let project = sandbox.setup("site", &[]);
@@ -229,6 +355,64 @@ fn add_refuses_to_overwrite_an_existing_page() {
 }
 
 #[test]
+fn icons_converts_every_svg_when_asked() {
+    let sandbox = Sandbox::new("icons");
+    let project = sandbox.setup("site", &[]);
+    fs::write(
+        project.join("components/icons/logo.svg"),
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+  <path d="M4 4h16v16H4z" />
+  <!-- a comment is dropped -->
+</svg>
+"#,
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["icons", "--all"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+
+    let component = read(&project.join("components/icons/logo.tsx"));
+    assert!(
+        component.contains("const LogoIcon = ({ className, ...props }: SVGProps<SVGSVGElement>)"),
+        "{component}"
+    );
+    assert!(component.contains("size-6"), "{component}");
+    assert!(component.contains("fill-none"), "{component}");
+    assert!(component.contains("stroke-current"), "{component}");
+    assert!(component.contains("strokeWidth=\"2\""), "{component}");
+    assert!(component.contains("strokeLinecap=\"round\""), "{component}");
+    assert!(component.contains("from \"@sglara/cn\""), "{component}");
+    assert!(component.contains("export { LogoIcon };"), "{component}");
+    assert!(!component.contains("<!--"), "{component}");
+}
+
+#[test]
+fn icons_refuses_to_overwrite_an_existing_component() {
+    let sandbox = Sandbox::new("icons-twice");
+    let project = sandbox.setup("site", &[]);
+    fs::write(
+        project.join("components/icons/logo.svg"),
+        r#"<svg width="16" height="16"><path d="M0 0h16v16H0z" /></svg>"#,
+    )
+    .unwrap();
+    assert!(sandbox.run(&project, &["icons", "--all"]).status.success());
+
+    let output = sandbox.run(&project, &["icons", "--all"]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("already exists"));
+}
+
+#[test]
+fn icons_reports_an_empty_folder_without_a_terminal() {
+    let sandbox = Sandbox::new("icons-empty");
+    let project = sandbox.setup("site", &[]);
+
+    let output = sandbox.run(&project, &["icons"]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("no SVG file"));
+}
+
+#[test]
 fn add_lang_creates_dictionary_and_updates_config_without_new_routes() {
     let sandbox = Sandbox::new("add-lang");
     let project = sandbox.setup("site", &[]);
@@ -246,10 +430,7 @@ fn add_lang_creates_dictionary_and_updates_config_without_new_routes() {
     assert!(dictionary.contains("\"home.title\": \"\","), "{dictionary}");
     assert!(!project.join("app/(de)").exists());
     assert!(project.join("app/[locale]/about/page.tsx").exists());
-    assert!(
-        read(&project.join("lib/i18n/config.ts"))
-            .contains("\"fr\", \"en\", \"es\", \"ko\", \"de\"")
-    );
+    assert!(read(&project.join("lib/i18n/config.ts")).contains("\"fr\", \"en\", \"de\""));
     assert!(read(&project.join("aarshi.toml")).contains("\"de\""));
     assert!(read(&project.join("aarshi.toml")).contains("package_manager = \"npm\""));
 }
@@ -278,7 +459,7 @@ fn check_reports_empty_translations_until_they_are_filled() {
         "{report}"
     );
 
-    for locale in ["fr", "en", "es", "ko", "de"] {
+    for locale in ["fr", "en", "de"] {
         let path = project.join(format!("lib/i18n/dictionaries/{locale}.ts"));
         let filled = read(&path).replace("\"home.title\": \"\"", "\"home.title\": \"Home\"");
         fs::write(&path, filled).unwrap();

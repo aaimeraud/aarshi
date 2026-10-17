@@ -2,6 +2,7 @@ mod add;
 mod check;
 mod config;
 mod dictionary;
+mod icons;
 mod lang;
 mod project;
 mod setup;
@@ -22,12 +23,18 @@ struct Cli {
 enum Command {
     /// Create a Next.js project
     Setup(SetupArgs),
-    /// Add a section to a page, or a page. Asks for missing names.
+    /// Add a section to a page, a page, or a component. Asks for missing names.
     Add(AddArgs),
     /// Add a language to the project
     AddLang {
         /// Two-letter language code, e.g. `de`. Asked when omitted.
         code: Option<String>,
+    },
+    /// Turn the SVG files of `components/icons` into React components
+    Icons {
+        /// Convert every SVG without asking
+        #[arg(long)]
+        all: bool,
     },
     /// Report empty translations and missing routes
     Check,
@@ -56,6 +63,18 @@ struct SetupArgs {
     /// Enable Cache Components. Asked when no option flag is given.
     #[arg(long)]
     cache_components: bool,
+    /// Comma-separated language codes, e.g. `fr,en,ja`. Asked when omitted.
+    #[arg(long, value_name = "CODES", value_delimiter = ',')]
+    languages: Option<Vec<String>>,
+    /// Default language code, served at the root. Asked when omitted.
+    #[arg(long, value_name = "CODE")]
+    default_language: Option<String>,
+    /// UI components: `shadcn` or `base-ui`. Asked when omitted.
+    #[arg(long, value_name = "NAME")]
+    ui: Option<String>,
+    /// Icon library: `lucide` or `none`. Asked when omitted.
+    #[arg(long, value_name = "NAME")]
+    icons: Option<String>,
     /// Site URL, asked when omitted
     #[arg(long, value_name = "URL")]
     site_url: Option<String>,
@@ -73,11 +92,21 @@ struct AddArgs {
         value_name = "SECTION",
         num_args = 0..=1,
         default_missing_value = "",
-        conflicts_with = "page_only"
+        conflicts_with_all = ["page_only", "component"]
     )]
     section: Option<String>,
+    /// Add a component to `components/custom/`. Without a value, the name is asked.
+    #[arg(
+        short = 'c',
+        long,
+        value_name = "NAME",
+        num_args = 0..=1,
+        default_missing_value = "",
+        conflicts_with_all = ["section", "page_only"]
+    )]
+    component: Option<String>,
     /// Add a page
-    #[arg(short = 'p', long, conflicts_with = "section")]
+    #[arg(short = 'p', long, conflicts_with_all = ["section", "component"])]
     page_only: bool,
     /// Page name. Asked when omitted.
     page: Option<String>,
@@ -89,6 +118,10 @@ fn main() -> Result<()> {
         Command::Setup(args) => setup::run(setup::SetupOptions {
             package_manager: package_manager(&args),
             dir: args.dir,
+            languages: args.languages,
+            default_language: args.default_language,
+            ui: args.ui,
+            icons: args.icons,
             agent_feedback: args.agent_feedback,
             cache_components: args.cache_components,
             site_url: args.site_url,
@@ -96,10 +129,12 @@ fn main() -> Result<()> {
         }),
         Command::Add(args) => add::run(add::AddOptions {
             section: args.section,
+            component: args.component,
             page: args.page,
             page_only: args.page_only,
         }),
         Command::AddLang { code } => lang::run(code),
+        Command::Icons { all } => icons::run(all),
         Command::Check => check::run(),
     }
 }
