@@ -20,7 +20,7 @@ Les composants externes (shadcn) sont saisis librement et passés à `shadcn add
 
 - Créé avec `create-next-app`, avec des flags explicites : TypeScript, Tailwind, App Router, sans `src/`, ESLint, `AGENTS.md`. L'agent feedback et les Cache Components sont désactivés par défaut et peuvent être activés par un flag.
 - Télémétrie désactivée pour le projet : `NEXT_TELEMETRY_DISABLED=1` est défini pendant la création, puis écrit dans le `.env` du projet. La configuration globale de Next.js n'est pas modifiée.
-- Langues : fr, en, es, ko par défaut. La liste se règle dans la config utilisateur (`~/.config/aarshi/config.toml`) et peut être remplacée par projet grâce à `aarshi.toml` à la racine du projet, qui remplace la liste. Le sens d'écriture est déduit de chaque langue (ar, he, fa sont RTL).
+- Langues : fr, en, es, ko par défaut. La liste se règle dans la config utilisateur (`~/.config/aarshi/config.toml`) et peut être remplacée par projet grâce à `aarshi.toml` à la racine du projet, qui remplace la liste. La première langue est la langue par défaut, servie à la racine. Le sens d'écriture est déduit de chaque langue (ar, he, fa sont RTL).
 - Le sitemap est mis à jour via des marqueurs de commentaire dans `app/sitemap.ts`.
 
 ## Installation
@@ -31,5 +31,4 @@ Prévu : `cargo install` ou Homebrew, sous forme de binaire unique.
 
 - Mise à jour du sitemap au-delà des marqueurs de commentaire.
 - Options de `add -p` au-delà de la création de page, de section et d'entrée de sitemap.
-- Clés exactes de `config.toml` et `aarshi.toml`.
-- Contenu exact des templates et des fichiers générés par `setup`.
+- Texte littéral des templates générés (la structure est décidée).
