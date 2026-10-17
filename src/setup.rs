@@ -5,15 +5,17 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use inquire::Text;
+use inquire::{MultiSelect, Select, Text};
 
 use crate::{
     add,
-    config::{Config, PROJECT_CONFIG_FILE},
+    config::{Config, PACKAGE_MANAGERS, PROJECT_CONFIG_FILE},
     project, templates,
 };
 
 const DEFAULT_SITE_URL: &str = "http://localhost:3000";
+const AGENT_FEEDBACK: &str = "Agent feedback";
+const CACHE_COMPONENTS: &str = "Cache Components";
 
 pub struct SetupOptions {
     pub dir: Option<String>,
@@ -21,37 +23,62 @@ pub struct SetupOptions {
     pub agent_feedback: bool,
     pub cache_components: bool,
     pub site_url: Option<String>,
+    pub yes: bool,
 }
 
 pub fn run(options: SetupOptions) -> Result<()> {
     let user = Config::user()?;
-    let manager = options
-        .package_manager
-        .unwrap_or(user.package_manager.clone());
     let dir = match options.dir {
         Some(dir) => dir,
+        None if options.yes => bail!("a project folder is required with --yes"),
         None => Text::new("Project folder name").prompt()?,
     };
     let root = target_root(&dir)?;
     let site_url = match options.site_url {
         Some(url) => url,
+        None if options.yes => DEFAULT_SITE_URL.to_string(),
         None => Text::new("Site URL")
             .with_default(DEFAULT_SITE_URL)
             .prompt()?,
     };
     let site_url = normalize_site_url(&site_url)?;
+    let manager = match options.package_manager {
+        Some(manager) => manager,
+        None if options.yes => user.package_manager.clone(),
+        None => select_package_manager(&user.package_manager)?,
+    };
+    let (agent_feedback, cache_components) =
+        if options.yes || options.agent_feedback || options.cache_components {
+            (options.agent_feedback, options.cache_components)
+        } else {
+            select_features()?
+        };
 
-    create_next_app(
-        &manager,
-        &dir,
-        options.agent_feedback,
-        options.cache_components,
-    )?;
+    create_next_app(&manager, &dir, agent_feedback, cache_components)?;
     let config = Config {
         languages: user.languages,
         package_manager: manager,
     };
-    generate(&root, &config, &site_url, options.cache_components)
+    generate(&root, &config, &site_url, cache_components)
+}
+
+fn select_package_manager(default: &str) -> Result<String> {
+    let start = PACKAGE_MANAGERS
+        .iter()
+        .position(|manager| *manager == default)
+        .unwrap_or(0);
+    let choice = Select::new("Package manager", PACKAGE_MANAGERS.to_vec())
+        .with_starting_cursor(start)
+        .prompt()?;
+    Ok(choice.to_string())
+}
+
+fn select_features() -> Result<(bool, bool)> {
+    let chosen = MultiSelect::new("Options", vec![AGENT_FEEDBACK, CACHE_COMPONENTS]).prompt()?;
+    Ok((
+        chosen.contains(&AGENT_FEEDBACK),
+        chosen.contains(&CACHE_COMPONENTS),
+    ))
 }
 
 fn create_next_app(
@@ -176,12 +203,10 @@ fn generate(root: &Path, config: &Config, site_url: &str, cache_components: bool
     project::create_file(&root.join("app/sitemap.ts"), &templates::sitemap())?;
     project::create_file(&root.join("app/robots.ts"), &templates::robots())?;
     for locale in languages {
-        let layout_dir = if locale == default {
-            root.join(format!("app/({locale})"))
-        } else {
-            root.join(format!("app/({locale})/{locale}"))
-        };
-        project::create_file(&layout_dir.join("layout.tsx"), &templates::layout(locale))?;
+        project::create_file(
+            &add::layout_file(root, locale, default),
+            &templates::layout(locale),
+        )?;
     }
     add::write_page(root, languages, "home")
 }

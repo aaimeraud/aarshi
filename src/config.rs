@@ -78,6 +78,10 @@ impl Config {
     }
 }
 
+pub fn is_aarshi_project(root: &Path) -> bool {
+    root.join(PROJECT_CONFIG_FILE).exists()
+}
+
 pub fn is_rtl(language: &str) -> bool {
     RTL_LANGUAGES.contains(&language)
 }
@@ -94,13 +98,18 @@ fn validate_languages(languages: &[String]) -> Result<()> {
         bail!("`languages` must contain at least one language");
     }
     for (index, language) in languages.iter().enumerate() {
-        let valid = language.len() == 2 && language.chars().all(|c| c.is_ascii_lowercase());
-        if !valid {
-            bail!("invalid language `{language}` (expected a lowercase two-letter code)");
-        }
+        validate_language(language)?;
         if languages[..index].contains(language) {
             bail!("language `{language}` is listed more than once");
         }
+    }
+    Ok(())
+}
+
+pub fn validate_language(language: &str) -> Result<()> {
+    let valid = language.len() == 2 && language.chars().all(|c| c.is_ascii_lowercase());
+    if !valid {
+        bail!("invalid language `{language}` (expected a lowercase two-letter code)");
     }
     Ok(())
 }

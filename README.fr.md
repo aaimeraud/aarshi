@@ -2,19 +2,22 @@
 
 Un CLI en Rust qui génère des sites Next.js multilingues (App Router) avec `views/`, `sections/`, une route par langue et des dictionnaires typés. Le projet généré est en TypeScript.
 
-Statut : spécification. Le CLI n'est pas encore implémenté. Voir [`issues/0001-map.md`](issues/0001-map.md) pour les décisions et les points ouverts.
+Statut : le CLI v1 est en revue (PR #4). Voir [`issues/0001-map.md`](issues/0001-map.md) pour les décisions et les points ouverts.
 
 Version anglaise : [`README.md`](README.md). Conventions : [`CONVENTIONS.fr.md`](CONVENTIONS.fr.md).
 
-## Commandes (v1)
+## Commandes
 
-- `aarshi setup [<dossier>]` : crée un projet Next.js. Sans argument, demande le nom du dossier. `aarshi setup .` utilise le dossier courant.
+Chaque commande demande les valeurs qui ne sont pas passées en argument. Passer `--yes` à `setup` accepte les valeurs par défaut.
+
+- `aarshi setup [<dossier>]` : crée un projet Next.js. `aarshi setup .` utilise le dossier courant. Demande l'URL du site, le gestionnaire de paquets (`--npm`, `--pnpm`, `--yarn`, `--bun`) et les options (agent feedback, Cache Components, sous forme de cases à cocher).
+- `aarshi add` : demande si l'on ajoute une section ou une page, puis demande les noms.
 - `aarshi add -s <section> <page>` : ajoute une section à une page. Si la page n'existe pas, signale l'erreur et propose de la créer (o/n).
 - `aarshi add -p <page>` : ajoute une page.
+- `aarshi add-lang <code>` : ajoute une langue (par ex. `de`) à un projet existant. Crée son dictionnaire avec des valeurs vides, ses routes et son layout.
+- `aarshi check` : liste les traductions vides, les clés manquantes et les routes manquantes. Ne modifie rien, et sort en erreur quand il trouve un problème.
 
-Gestionnaire de paquets : `--npm` (défaut), `--pnpm`, `--yarn`, `--bun`.
-
-Les composants externes (shadcn) sont saisis librement et passés à `shadcn add`.
+Les composants externes (shadcn) ne sont pas encore pris en charge.
 
 ## Projet généré
 

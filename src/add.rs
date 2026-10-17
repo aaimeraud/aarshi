@@ -4,47 +4,70 @@ use std::{
 };
 
 use anyhow::{Result, bail};
-use inquire::Confirm;
+use inquire::{Confirm, Select, Text};
 
 use crate::{
-    config::Config,
+    config::{self, Config},
+    dictionary,
     project::{self, to_pascal_case, validate_name},
     templates::{self, IMPORTS_MARKER, MESSAGES_MARKER, PAGES_MARKER, SECTIONS_MARKER},
 };
 
 pub struct AddOptions {
+    /// `Some("")` when `-s` is given without a value, so the name is asked.
     pub section: Option<String>,
-    pub page: String,
+    pub page: Option<String>,
     pub page_only: bool,
 }
 
 pub fn run(options: AddOptions) -> Result<()> {
     let root = env::current_dir()?;
-    validate_name("page", &options.page)?;
+    if !config::is_aarshi_project(&root) {
+        bail!("not an aarshi project: no aarshi.toml in this folder");
+    }
     let config = Config::for_project(&root)?;
 
-    match options.section {
-        Some(section) => {
+    match (options.section, options.page_only, options.page) {
+        (Some(section), _, page) => {
+            let section = if section.is_empty() {
+                Text::new("Section name").prompt()?
+            } else {
+                section
+            };
+            let page = ask_page(page)?;
             validate_name("section", &section)?;
-            if !view_file(&root, &options.page).exists() {
-                eprintln!("error: page `{}` does not exist", options.page);
-                let create = Confirm::new(&format!("Create page `{}`?", options.page))
-                    .with_default(false)
-                    .prompt()?;
-                if !create {
-                    bail!("page `{}` was not created", options.page);
-                }
-                create_page(&root, &config.languages, &options.page)?;
-            }
-            add_section(&root, &config.languages, &options.page, &section)
+            add_section(&root, &config.languages, &page, &section)
         }
-        None if options.page_only => create_page(&root, &config.languages, &options.page),
-        None => bail!("use `-s <section> <page>` to add a section or `-p <page>` to add a page"),
+        (None, true, page) => create_page(&root, &config.languages, &ask_page(page)?),
+        (None, false, Some(_)) => {
+            bail!("use `-s <section> <page>` to add a section or `-p <page>` to add a page")
+        }
+        (None, false, None) => {
+            match Select::new("What do you want to add?", vec!["Section", "Page"]).prompt()? {
+                "Section" => {
+                    let section = Text::new("Section name").prompt()?;
+                    let page = ask_page(None)?;
+                    validate_name("section", &section)?;
+                    add_section(&root, &config.languages, &page, &section)
+                }
+                _ => create_page(&root, &config.languages, &ask_page(None)?),
+            }
+        }
     }
+}
+
+fn ask_page(page: Option<String>) -> Result<String> {
+    let page = match page {
+        Some(page) => page,
+        None => Text::new("Page name").prompt()?,
+    };
+    validate_name("page", &page)?;
+    Ok(page)
 }
 
 /// Creates a page and registers it in the sitemap.
 pub fn create_page(root: &Path, languages: &[String], page: &str) -> Result<()> {
+    validate_name("page", page)?;
     write_page(root, languages, page)?;
     let route_path = route_path(page);
     project::update_file(&root.join("app/sitemap.ts"), |content| {
@@ -73,14 +96,25 @@ pub fn write_page(root: &Path, languages: &[String], page: &str) -> Result<()> {
     }
     for locale in languages {
         let key = format!("\"{page}.title\": \"\",");
-        project::update_file(&messages_file(root, locale), |content| {
+        project::update_file(&dictionary::file(root, locale), |content| {
             project::insert_before_marker(content, MESSAGES_MARKER, &key)
         })?;
     }
     Ok(())
 }
 
-fn add_section(root: &Path, languages: &[String], page: &str, section: &str) -> Result<()> {
+pub fn add_section(root: &Path, languages: &[String], page: &str, section: &str) -> Result<()> {
+    if !view_file(root, page).exists() {
+        eprintln!("error: page `{page}` does not exist");
+        let create = Confirm::new(&format!("Create page `{page}`?"))
+            .with_default(false)
+            .prompt()?;
+        if !create {
+            bail!("page `{page}` was not created");
+        }
+        create_page(root, languages, page)?;
+    }
+
     let section_file = root
         .join("views")
         .join(page)
@@ -104,7 +138,7 @@ fn add_section(root: &Path, languages: &[String], page: &str, section: &str) -> 
     })?;
     for locale in languages {
         let key = format!("\"{page}.{section}.title\": \"\",");
-        project::update_file(&messages_file(root, locale), |content| {
+        project::update_file(&dictionary::file(root, locale), |content| {
             project::insert_before_marker(content, MESSAGES_MARKER, &key)
         })?;
     }
@@ -126,13 +160,8 @@ fn view_file(root: &Path, page: &str) -> PathBuf {
         .join(format!("{page}.view.tsx"))
 }
 
-fn messages_file(root: &Path, locale: &str) -> PathBuf {
-    root.join("lib/i18n/dictionaries")
-        .join(format!("{locale}.ts"))
-}
-
 /// The default language lives in the root group, others under `/<locale>`.
-fn route_file(root: &Path, locale: &str, default: &str, route_path: &str) -> PathBuf {
+pub fn route_file(root: &Path, locale: &str, default: &str, route_path: &str) -> PathBuf {
     let mut path = root.join("app").join(format!("({locale})"));
     if locale != default {
         path.push(locale);
@@ -141,5 +170,14 @@ fn route_file(root: &Path, locale: &str, default: &str, route_path: &str) -> Pat
         path.push(segment);
     }
     path.push("page.tsx");
+    path
+}
+
+pub fn layout_file(root: &Path, locale: &str, default: &str) -> PathBuf {
+    let mut path = root.join("app").join(format!("({locale})"));
+    if locale != default {
+        path.push(locale);
+    }
+    path.push("layout.tsx");
     path
 }

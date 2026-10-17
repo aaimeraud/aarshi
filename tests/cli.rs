@@ -55,7 +55,7 @@ impl Sandbox {
     }
 
     fn setup(&self, name: &str, extra: &[&str]) -> PathBuf {
-        let mut args = vec!["setup", name, "--site-url", "https://example.com/"];
+        let mut args = vec!["setup", name, "--site-url", "https://example.com/", "--yes"];
         args.extend_from_slice(extra);
         let output = self.run(&self.root, &args);
         assert!(output.status.success(), "{}", stderr(&output));
@@ -227,6 +227,78 @@ fn add_refuses_to_overwrite_an_existing_page() {
     let output = sandbox.add(&project, &["-p", "about"]);
     assert!(!output.status.success());
     assert!(stderr(&output).contains("already exists"));
+}
+
+#[test]
+fn add_lang_creates_dictionary_routes_and_layout_for_existing_pages() {
+    let sandbox = Sandbox::new("add-lang");
+    let project = sandbox.setup("site", &[]);
+    assert!(sandbox.add(&project, &["-p", "about"]).status.success());
+
+    let output = sandbox.run(&project, &["add-lang", "de"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+
+    let dictionary = read(&project.join("lib/i18n/dictionaries/de.ts"));
+    assert!(dictionary.contains("import type { messages as base } from \"./fr\";"));
+    assert!(
+        dictionary.contains("\"about.title\": \"\","),
+        "{dictionary}"
+    );
+    assert!(dictionary.contains("\"home.title\": \"\","), "{dictionary}");
+    assert!(project.join("app/(de)/de/layout.tsx").exists());
+    assert!(project.join("app/(de)/de/page.tsx").exists());
+    assert!(project.join("app/(de)/de/about/page.tsx").exists());
+    assert!(
+        read(&project.join("lib/i18n/config.ts"))
+            .contains("\"fr\", \"en\", \"es\", \"ko\", \"de\"")
+    );
+    assert!(read(&project.join("aarshi.toml")).contains("\"de\""));
+    assert!(read(&project.join("aarshi.toml")).contains("package_manager = \"npm\""));
+}
+
+#[test]
+fn add_lang_rejects_a_language_already_in_the_project() {
+    let sandbox = Sandbox::new("add-lang-twice");
+    let project = sandbox.setup("site", &[]);
+
+    let output = sandbox.run(&project, &["add-lang", "en"]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("already exists"));
+}
+
+#[test]
+fn check_reports_empty_translations_until_they_are_filled() {
+    let sandbox = Sandbox::new("check");
+    let project = sandbox.setup("site", &[]);
+    sandbox.run(&project, &["add-lang", "de"]);
+
+    let output = sandbox.run(&project, &["check"]);
+    assert!(!output.status.success());
+    let report = String::from_utf8_lossy(&output.stdout).into_owned();
+    assert!(
+        report.contains("de: empty translation for `home.title`"),
+        "{report}"
+    );
+
+    for locale in ["fr", "en", "es", "ko", "de"] {
+        let path = project.join(format!("lib/i18n/dictionaries/{locale}.ts"));
+        let filled = read(&path).replace("\"home.title\": \"\"", "\"home.title\": \"Home\"");
+        fs::write(&path, filled).unwrap();
+    }
+    let output = sandbox.run(&project, &["check"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
+#[test]
+fn setup_with_yes_needs_a_folder_name() {
+    let sandbox = Sandbox::new("setup-yes-no-dir");
+    let output = sandbox.run(&sandbox.root, &["setup", "--yes"]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("folder is required"));
 }
 
 #[test]

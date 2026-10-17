@@ -1,5 +1,8 @@
 mod add;
+mod check;
 mod config;
+mod dictionary;
+mod lang;
 mod project;
 mod setup;
 mod templates;
@@ -19,8 +22,15 @@ struct Cli {
 enum Command {
     /// Create a Next.js project
     Setup(SetupArgs),
-    /// Add a section to a page, or a page
+    /// Add a section to a page, or a page. Asks for missing names.
     Add(AddArgs),
+    /// Add a language to the project
+    AddLang {
+        /// Two-letter language code, e.g. `de`. Asked when omitted.
+        code: Option<String>,
+    },
+    /// Report empty translations and missing routes
+    Check,
 }
 
 #[derive(Args)]
@@ -28,7 +38,7 @@ enum Command {
 struct SetupArgs {
     /// Project folder, or `.` for the current folder. Asked when omitted.
     dir: Option<String>,
-    /// Use npm (default)
+    /// Use npm
     #[arg(long)]
     npm: bool,
     /// Use pnpm
@@ -40,27 +50,37 @@ struct SetupArgs {
     /// Use bun
     #[arg(long)]
     bun: bool,
-    /// Enable agent feedback
+    /// Enable agent feedback. Asked when no option flag is given.
     #[arg(long)]
     agent_feedback: bool,
-    /// Enable Cache Components
+    /// Enable Cache Components. Asked when no option flag is given.
     #[arg(long)]
     cache_components: bool,
     /// Site URL, asked when omitted
     #[arg(long, value_name = "URL")]
     site_url: Option<String>,
+    /// Accept defaults for every question. Requires the folder argument.
+    #[arg(short = 'y', long)]
+    yes: bool,
 }
 
 #[derive(Args)]
 struct AddArgs {
-    /// Section to add to the page
-    #[arg(short = 's', long, value_name = "SECTION")]
+    /// Add a section with this name. Without a value, the name is asked.
+    #[arg(
+        short = 's',
+        long,
+        value_name = "SECTION",
+        num_args = 0..=1,
+        default_missing_value = "",
+        conflicts_with = "page_only"
+    )]
     section: Option<String>,
     /// Add a page
     #[arg(short = 'p', long, conflicts_with = "section")]
     page_only: bool,
-    /// Page name
-    page: String,
+    /// Page name. Asked when omitted.
+    page: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -72,12 +92,15 @@ fn main() -> Result<()> {
             agent_feedback: args.agent_feedback,
             cache_components: args.cache_components,
             site_url: args.site_url,
+            yes: args.yes,
         }),
         Command::Add(args) => add::run(add::AddOptions {
             section: args.section,
             page: args.page,
             page_only: args.page_only,
         }),
+        Command::AddLang { code } => lang::run(code),
+        Command::Check => check::run(),
     }
 }
 

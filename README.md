@@ -2,19 +2,22 @@
 
 A Rust CLI that scaffolds multilingual Next.js sites (App Router) with `views/`, `sections/`, one route per language, and typed dictionaries. The generated project is TypeScript.
 
-Status: specification. The CLI is not implemented yet. See [`issues/0001-map.md`](issues/0001-map.md) for the decisions and open points.
+Status: the v1 CLI is in review (PR #4). See [`issues/0001-map.md`](issues/0001-map.md) for the decisions and open points.
 
 French version: [`README.fr.md`](README.fr.md). Conventions: [`CONVENTIONS.md`](CONVENTIONS.md).
 
-## Commands (v1)
+## Commands
 
-- `aarshi setup [<dir>]`: creates a Next.js project. Without an argument it asks for the folder name. `aarshi setup .` uses the current folder.
+Every command asks for the values it needs when they are not given as arguments. Pass `--yes` to `setup` to accept the defaults instead.
+
+- `aarshi setup [<dir>]`: creates a Next.js project. `aarshi setup .` uses the current folder. Asks for the site URL, the package manager (`--npm`, `--pnpm`, `--yarn`, `--bun`) and the options (agent feedback, Cache Components, as checkboxes).
+- `aarshi add`: asks whether to add a section or a page, then asks for the names.
 - `aarshi add -s <section> <page>`: adds a section to a page. If the page does not exist, it reports the error and asks whether to create it (y/n).
 - `aarshi add -p <page>`: adds a page.
+- `aarshi add-lang <code>`: adds a language (e.g. `de`) to an existing project. Creates its dictionary with empty values, its routes and its layout.
+- `aarshi check`: lists empty translations, missing keys and missing routes. Changes nothing, and exits with an error when it finds a problem.
 
-Package manager: `--npm` (default), `--pnpm`, `--yarn`, `--bun`.
-
-External components (shadcn) are passed as free text to `shadcn add`.
+External components (shadcn) are not supported yet.
 
 ## Generated project
 
