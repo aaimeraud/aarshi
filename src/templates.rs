@@ -36,12 +36,12 @@ export const direction: Record<Locale, "ltr" | "rtl"> = {
 __DIRECTIONS__
 };
 
-export function pagePath(locale: Locale, path: string): string {
+export const pagePath = (locale: Locale, path: string): string => {
   if (locale === defaultLocale) {
     return path;
   }
   return path === "/" ? `/${locale}` : `/${locale}${path}`;
-}
+};
 "#,
         &[
             ("LIST", &list),
@@ -73,11 +73,11 @@ export type MessageKey = keyof typeof __DEFAULT__;
 
 const messages = { __MAP__ } satisfies Record<Locale, Record<MessageKey, string>>;
 
-export function t(locale: Locale, key: MessageKey): string {
+export const t = (locale: Locale, key: MessageKey): string => {
   return messages[locale][key];
-}
+};
 
-export function pageMetadata(locale: Locale, path: string): Metadata {
+export const pageMetadata = (locale: Locale, path: string): Metadata => {
   return {
     alternates: {
       canonical: `${SITE_URL}${pagePath(locale, path)}`,
@@ -86,7 +86,7 @@ export function pageMetadata(locale: Locale, path: string): Metadata {
       ),
     },
   };
-}
+};
 "#,
         &[("IMPORTS", &imports), ("DEFAULT", default), ("MAP", &map)],
     )
@@ -119,14 +119,16 @@ const pages = [
   // __MARKER__
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+const sitemap = (): MetadataRoute.Sitemap => {
   return languages.flatMap((locale) =>
     pages.map((path) => ({
       url: `${SITE_URL}${pagePath(locale, path)}`,
       lastModified: new Date(),
     })),
   );
-}
+};
+
+export default sitemap;
 "#,
         &[("MARKER", PAGES_MARKER)],
     )
@@ -137,12 +139,14 @@ pub fn robots() -> String {
 
 import { SITE_URL } from "@/lib/site";
 
-export default function robots(): MetadataRoute.Robots {
+const robots = (): MetadataRoute.Robots => {
   return {
     rules: { userAgent: "*", allow: "/" },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
-}
+};
+
+export default robots;
 "#
     .to_string()
 }
@@ -154,13 +158,15 @@ pub fn layout(locale: &str) -> String {
 
 import "@/app/globals.css";
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+const RootLayout = ({ children }: { children: ReactNode }) => {
   return (
     <html lang="__LOCALE__" dir="__DIR__">
       <body>{children}</body>
     </html>
   );
-}
+};
+
+export default RootLayout;
 "#,
         &[("LOCALE", locale), ("DIR", dir)],
     )
@@ -202,9 +208,11 @@ import __COMPONENT__View from "@/views/__PAGE__/__PAGE__.view";
 
 export const metadata: Metadata = pageMetadata("__LOCALE__", "__PATH__");
 
-export default function Page() {
+const Page = () => {
   return <__COMPONENT__View locale="__LOCALE__" />;
-}
+};
+
+export default Page;
 "#,
         &[
             ("COMPONENT", &component),
