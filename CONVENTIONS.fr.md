@@ -21,4 +21,4 @@ Conventions pour le dépôt `aarshi` et pour les projets qu'il génère. Version
 ## Non spécifié
 
 - Nommage exact des templates et des fichiers générés (voir la carte).
-- Format du fichier de config des langues.
+- Clés exactes de `config.toml` et `aarshi.toml`.
