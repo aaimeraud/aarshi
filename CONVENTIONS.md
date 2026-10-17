@@ -21,4 +21,4 @@ Conventions for the `aarshi` repository and for the projects it generates. Frenc
 ## Not yet specified
 
 - Exact naming of templates and generated files (see the map).
-- Format of the language config file.
+
