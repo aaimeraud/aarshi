@@ -192,7 +192,13 @@ fn create_next_app(
     cache_components: bool,
 ) -> Result<()> {
     let mut command = Command::new(manager);
-    command.arg("create").arg("next-app@latest").arg(dir);
+    // Yarn 1 turns `next-app@latest` into a binary name (`create-next-app@latest`) and fails.
+    let package = if manager == "yarn" {
+        "next-app"
+    } else {
+        "next-app@latest"
+    };
+    command.arg("create").arg(package).arg(dir);
     if manager == "npm" {
         command.arg("--");
     }
@@ -261,9 +267,9 @@ fn install_dependencies(root: &Path, manager: &str, ui: &str, icons: &str) -> Re
 }
 
 fn run_shadcn(root: &Path, manager: &str, args: &[&str]) -> Result<()> {
+    // Yarn 1 has no `dlx`, and `npx` ships with Node, which every manager here needs.
     let (bin, prefix): (&str, &[&str]) = match manager {
         "pnpm" => ("pnpm", &["dlx"]),
-        "yarn" => ("yarn", &["dlx"]),
         "bun" => ("bunx", &[]),
         _ => ("npx", &["--yes"]),
     };

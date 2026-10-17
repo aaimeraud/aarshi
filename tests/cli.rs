@@ -113,6 +113,17 @@ fn setup_runs_create_next_app_with_explicit_flags_and_telemetry_off() {
 }
 
 #[test]
+fn setup_omits_the_version_tag_for_yarn() {
+    let sandbox = Sandbox::new("setup-yarn");
+    sandbox.setup("site", &["--yarn"]);
+
+    let log = read(&sandbox.log);
+    let args = log.lines().next().unwrap();
+    assert!(args.starts_with("create next-app site"), "{args}");
+    assert!(!args.contains("next-app@latest"), "{args}");
+}
+
+#[test]
 fn setup_installs_the_class_helper_and_the_icon_library() {
     let sandbox = Sandbox::new("setup-packages");
     sandbox.setup("site", &[]);
