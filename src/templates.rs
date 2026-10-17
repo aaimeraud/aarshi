@@ -172,14 +172,16 @@ pub fn view(page: &str) -> String {
         r#"import { t, type Locale } from "@/lib/i18n";
 // __IMPORTS__
 
-export default function __COMPONENT__View({ locale }: { locale: Locale }) {
+const __COMPONENT__View = ({ locale }: { locale: Locale }) => {
   return (
     <main>
       <h1>{t(locale, "__PAGE__.title")}</h1>
       {/* __SECTIONS__ */}
     </main>
   );
-}
+};
+
+export default __COMPONENT__View;
 "#,
         &[
             ("IMPORTS", IMPORTS_MARKER),
@@ -218,13 +220,13 @@ pub fn section(page: &str, section: &str) -> String {
     fill(
         r#"import { t, type Locale } from "@/lib/i18n";
 
-export function __COMPONENT__Section({ locale }: { locale: Locale }) {
+export const __COMPONENT__Section = ({ locale }: { locale: Locale }) => {
   return (
     <section>
       <h2>{t(locale, "__PAGE__.__SECTION__.title")}</h2>
     </section>
   );
-}
+};
 "#,
         &[
             ("COMPONENT", &component),

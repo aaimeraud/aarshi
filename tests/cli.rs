@@ -195,7 +195,7 @@ fn add_section_creates_component_and_keys_in_every_language() {
 
     assert!(
         read(&project.join("views/about/sections/hero.tsx"))
-            .contains("export function HeroSection")
+            .contains("export const HeroSection = ({ locale }")
     );
     let view = read(&project.join("views/about/about.view.tsx"));
     assert!(
