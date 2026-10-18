@@ -2,7 +2,7 @@
 labels: [wayfinder:implement]
 parent: 0014-map-implementation-status.md
 blocked-by: [0026-dimension-pages.md]
-status: open
+status: closed
 ---
 
 # Dimension `dependencies` : paquets déclarés, lockfile, `node_modules`
@@ -21,7 +21,7 @@ Rappels de spec : un **import de paquet npm non déclaré** tombe toujours dans 
 
 ## Critères d'acceptance
 
-- [ ] Chaque règle a au moins un test noir (constat déclenché sur fixture, `rule`, gravité, message).
-- [ ] Un import `lucide-react` sans dépendance déclarée produit bien un constat `dependencies` même quand l'import se trouve dans un fichier des dimensions précédentes.
-- [ ] Chaque gestionnaire (`npm`, `pnpm`, `yarn`, `bun`) a son cas nominal et son lockfile incohérent.
-- [ ] `node_modules/` absent → `todo` unique, code de sortie inchangé.
+- [x] Chaque règle a au moins un test noir (constat déclenché sur fixture, `rule`, gravité, message).
+- [x] Un import `lucide-react` sans dépendance déclarée produit bien un constat `dependencies` même quand l'import se trouve dans un fichier des dimensions précédentes.
+- [x] Chaque gestionnaire (`npm`, `pnpm`, `yarn`, `bun`) a son cas nominal et son lockfile incohérent.
+- [x] `node_modules/` absent → `todo` unique, code de sortie inchangé.

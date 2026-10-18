@@ -16,6 +16,13 @@ if [ "$1" = "create" ]; then
   printf 'import type { NextConfig } from "next";\n\nconst nextConfig: NextConfig = {\n  cacheComponents: true,\n};\n\nexport default nextConfig;\n' > "$3/next.config.ts"
   printf '{\n  "dependencies": {\n    "@base-ui/react": "^1.0.0",\n    "@sglara/cn": "^1.0.0",\n    "lucide-react": "^0.500.0",\n    "next": "^15.0.0",\n    "react": "^19.0.0"\n  }\n}\n' > "$3/package.json"
   printf '{}\n' > "$3/tsconfig.json"
+  mkdir -p "$3/node_modules"
+  case "$*" in
+    *--use-pnpm*) : > "$3/pnpm-lock.yaml" ;;
+    *--use-yarn*) : > "$3/yarn.lock" ;;
+    *--use-bun*) : > "$3/bun.lockb" ;;
+    *) : > "$3/package-lock.json" ;;
+  esac
   printf 'export default [];\n' > "$3/eslint.config.mjs"
   printf 'export default {};\n' > "$3/postcss.config.mjs"
 fi
@@ -201,7 +208,7 @@ fn write_base_files(root: &Path) {
         ),
         (
             "package.json",
-            "{\n  \"dependencies\": {\n    \"@base-ui/react\": \"^1.0.0\",\n    \"@sglara/cn\": \"^0.4.0\",\n    \"lucide-react\": \"^0.500.0\"\n  }\n}\n",
+            "{\n  \"dependencies\": {\n    \"@base-ui/react\": \"^1.0.0\",\n    \"@sglara/cn\": \"^0.4.0\",\n    \"lucide-react\": \"^0.500.0\",\n    \"next\": \"^15.0.0\"\n  }\n}\n",
         ),
     ] {
         let path = root.join(file);
@@ -210,6 +217,12 @@ fn write_base_files(root: &Path) {
     }
     fs::create_dir_all(root.join("components/custom")).unwrap();
     fs::create_dir_all(root.join("components/icons")).unwrap();
+    // The npm shape the generated project carries, consistent with the
+    // default `package_manager`: an installed `node_modules/` and the
+    // manager's lockfile, so the `dependencies` checks stay clean on the
+    // fixture.
+    fs::create_dir_all(root.join("node_modules")).unwrap();
+    fs::write(root.join("package-lock.json"), "{}\n").unwrap();
 }
 
 /// A minimal generated project covering the `i18n` checks: the whole base
@@ -2284,7 +2297,7 @@ fn config_checks_the_icons_option() {
     write_project_file(
         &project,
         "package.json",
-        "{\n  \"dependencies\": {\"@base-ui/react\": \"^1.0.0\", \"@sglara/cn\": \"^0.4.0\"}\n}\n",
+        "{\n  \"dependencies\": {\"next\": \"^15.0.0\", \"@base-ui/react\": \"^1.0.0\", \"@sglara/cn\": \"^0.4.0\"}\n}\n",
     );
     let output = status_config(&sandbox, &project);
     assert_eq!(output.status.code(), Some(1));
@@ -2751,4 +2764,346 @@ fn status_reports_a_broken_import_in_a_section() {
         finding["location"]["file"].as_str().unwrap(),
         "views/about/sections/hero.tsx"
     );
+}
+// ==== `status` (dependencies dimension) ===================================
+
+/// One JSON dimension object of a `status --json` run.
+fn dimension_of(output: &Output, id: &str) -> serde_json::Value {
+    let document: serde_json::Value = serde_json::from_str(&stdout(output)).unwrap();
+    document["dimensions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|dimension| dimension["id"].as_str().unwrap() == id)
+        .cloned()
+        .unwrap()
+}
+
+/// The findings of the `dependencies` dimension of a `status --json` run.
+fn dependencies_findings(output: &Output) -> Vec<serde_json::Value> {
+    dimension_of(output, "dependencies")["findings"]
+        .as_array()
+        .unwrap()
+        .clone()
+}
+
+/// A `pages`-shaped project, plus the npm files the `dependencies` dimension
+/// checks: a `package.json` declaring the imports used by the fixture and a
+/// consistent `package-lock.json` with a `node_modules/` folder. The
+/// `aarshi.toml` options stay out of the dependencies' way (`shadcn`, `none`)
+/// so the tests below can import undeclared packages freely.
+fn dependencies_project(name: &str) -> PathBuf {
+    let root = pages_project(name);
+    write_package_json(&root, &[("next", "15.0.0")], &[]);
+    let toml = read(&root.join("aarshi.toml"))
+        .replace("ui = \"base-ui\"", "ui = \"shadcn\"")
+        .replace("icons = \"lucide\"", "icons = \"none\"");
+    fs::write(root.join("aarshi.toml"), toml).unwrap();
+    root
+}
+
+/// Writes a `package.json` from its `dependencies` and `devDependencies`.
+fn write_package_json(root: &Path, dependencies: &[(&str, &str)], dev: &[(&str, &str)]) {
+    let section = |entries: &[(&str, &str)]| {
+        entries
+            .iter()
+            .map(|(name, version)| format!("    \"{name}\": \"{version}\""))
+            .collect::<Vec<_>>()
+            .join(",\n")
+    };
+    fs::write(
+        root.join("package.json"),
+        format!(
+            "{{\n  \"name\": \"site\",\n  \"dependencies\": {{\n{}\n  }},\n  \"devDependencies\": {{\n{}\n  }}\n}}\n",
+            section(dependencies),
+            section(dev),
+        ),
+    )
+    .unwrap();
+}
+
+/// The content of a rewritten `views/home/home.view.tsx`: the package import
+/// under test plus both `add -s` markers, so the `sections` dimension says
+/// nothing about the fixture.
+fn home_view_with(import: &str) -> String {
+    const SECTIONS_MARKER: &str = "{/* aarshi:sections:end */}";
+    format!(
+        "{import}\n// aarshi:imports:end\n\nconst HomeView = () => null;\n\n{SECTIONS_MARKER}\n\nexport default HomeView;\n"
+    )
+}
+
+#[test]
+fn status_reports_an_undeclared_npm_package() {
+    let sandbox = Sandbox::new("dependencies-package-missing");
+    let project = dependencies_project("dependencies-package-missing");
+    write_view(&project, "home", &home_view_with("import { House } from \"lucide-react\";"));
+
+    let json = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(json.status.code(), Some(1));
+    let findings = dependencies_findings(&json);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(
+        finding["rule"].as_str().unwrap(),
+        "dependencies.package-missing"
+    );
+    assert_eq!(finding["severity"].as_str().unwrap(), "error");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "`lucide-react` is not declared in package.json"
+    );
+    assert_eq!(
+        finding["detail"].as_str().unwrap(),
+        "imported in views/home/home.view.tsx"
+    );
+    assert_eq!(finding["location"]["file"].as_str().unwrap(), "package.json");
+
+    // The human report keeps the import out of the view's own dimension.
+    let human = sandbox.run(&project, &["status"]);
+    let report = stdout(&human);
+    assert!(
+        report
+            .contains("dependencies\n  error: `lucide-react` is not declared in package.json\n"),
+        "{report}"
+    );
+}
+
+#[test]
+fn status_reports_a_scoped_package_by_its_root_name() {
+    // `@base-ui/react/button` names the package `@base-ui/react`.
+    let sandbox = Sandbox::new("dependencies-package-scoped");
+    let project = dependencies_project("dependencies-package-scoped");
+    write_view(&project, "home", &home_view_with("import { Button } from \"@base-ui/react/button\";"));
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    let findings = dependencies_findings(&output);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "`@base-ui/react` is not declared in package.json"
+    );
+    assert_eq!(
+        finding["detail"].as_str().unwrap(),
+        "imported in views/home/home.view.tsx"
+    );
+}
+
+#[test]
+fn status_accepts_a_package_declared_in_dev_dependencies() {
+    let sandbox = Sandbox::new("dependencies-package-dev");
+    let project = dependencies_project("dependencies-package-dev");
+    write_package_json(&project, &[("next", "15.0.0")], &[("lucide-react", "1.0.0")]);
+    write_view(&project, "home", &home_view_with("import { House } from \"lucide-react\";"));
+
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(stdout(&output).contains("dependencies ✓"), "{}", stdout(&output));
+}
+
+#[test]
+fn status_treats_a_bare_import_as_a_package_not_a_local_file() {
+    // `lib/util.ts` exists, but `util` without `./` or `@/` names an npm
+    // package, whatever the file system of the project says.
+    let sandbox = Sandbox::new("dependencies-package-shadow");
+    let project = dependencies_project("dependencies-package-shadow");
+    fs::create_dir_all(project.join("lib")).unwrap();
+    fs::write(project.join("lib/util.ts"), "export const util = 1;\n").unwrap();
+    write_view(&project, "home", &home_view_with("import { util } from \"util\";"));
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    let findings = dependencies_findings(&output);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(
+        finding["rule"].as_str().unwrap(),
+        "dependencies.package-missing"
+    );
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "`util` is not declared in package.json"
+    );
+    // Never a broken import in the view's own dimension.
+    assert!(pages_findings(&output).is_empty(), "{}", stdout(&output));
+}
+
+#[test]
+fn status_parks_a_package_import_in_dependencies_not_in_the_files_dimension() {
+    // The undeclared package sits in a file of the `i18n` dimension: the
+    // finding still belongs to `dependencies`.
+    let sandbox = Sandbox::new("dependencies-package-parked");
+    let project = dependencies_project("dependencies-package-parked");
+    fs::write(
+        project.join("lib/i18n/index.ts"),
+        format!(
+            "import {{ command }} from \"lucide-react\";\n{}",
+            read(&project.join("lib/i18n/index.ts"))
+        ),
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let i18n = dimension_of(&output, "i18n");
+    assert_eq!(i18n["errors"], 0, "{}", stdout(&output));
+    assert_eq!(i18n["todos"], 0);
+    let dependencies = dimension_of(&output, "dependencies");
+    assert_eq!(dependencies["errors"], 1);
+    assert_eq!(
+        dependencies["findings"][0]["rule"].as_str().unwrap(),
+        "dependencies.package-missing"
+    );
+    assert_eq!(
+        dependencies["findings"][0]["summary"].as_str().unwrap(),
+        "`lucide-react` is not declared in package.json"
+    );
+}
+
+#[test]
+fn status_groups_the_importers_of_one_undeclared_package() {
+    let sandbox = Sandbox::new("dependencies-package-shared");
+    let project = dependencies_project("dependencies-package-shared");
+    write_view(&project, "home", &home_view_with("import { command } from \"lucide-react\";"));
+    fs::write(
+        project.join("lib/i18n/index.ts"),
+        format!(
+            "import {{ clipboard }} from \"lucide-react\";\n{}",
+            read(&project.join("lib/i18n/index.ts"))
+        ),
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    let findings = dependencies_findings(&output);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "`lucide-react` is not declared in package.json"
+    );
+    // One finding per package, the importers kept as detail, sorted.
+    assert_eq!(
+        finding["detail"].as_str().unwrap(),
+        "imported in lib/i18n/index.ts, views/home/home.view.tsx"
+    );
+}
+
+#[test]
+fn status_checks_the_lockfile_against_the_package_manager() {
+    for (manager, lockfile, wrong) in [
+        ("npm", "package-lock.json", "pnpm-lock.yaml"),
+        ("pnpm", "pnpm-lock.yaml", "yarn.lock"),
+        ("yarn", "yarn.lock", "bun.lockb"),
+        // `bun` may carry the legacy binary lock or the text one.
+        ("bun", "bun.lockb", "package-lock.json"),
+        ("bun", "bun.lock", "package-lock.json"),
+    ] {
+        let name = format!("lock-{}-{}", manager, lockfile);
+        let sandbox = Sandbox::new(&name);
+        let project = dependencies_project(&name);
+        fs::write(
+            project.join("aarshi.toml"),
+            format!(
+                "languages = [\"fr\", \"en\"]\npackage_manager = \"{manager}\"\nui = \"shadcn\"\nicons = \"none\"\ncache_components = false\nsite_url = \"https://example.com\"\n"
+            ),
+        )
+        .unwrap();
+        fs::remove_file(project.join("package-lock.json")).unwrap();
+        fs::write(project.join(lockfile), "{}\n").unwrap();
+
+        // Nominal: the manager's own lockfile stays silent.
+        let consistent = sandbox.run(&project, &["status", "--json"]);
+        assert_eq!(consistent.status.code(), Some(0), "{}: {}", manager, stdout(&consistent));
+        assert!(
+            dependencies_findings(&consistent).is_empty(),
+            "{manager}/{lockfile}: {}",
+            stdout(&consistent)
+        );
+
+        // A lockfile from another manager fires one `error`.
+        let expected = match manager {
+            "pnpm" => "pnpm-lock.yaml",
+            "yarn" => "yarn.lock",
+            "bun" => "bun.lockb or bun.lock",
+            _ => "package-lock.json",
+        };
+        fs::write(project.join(wrong), "{}\n").unwrap();
+        let inconsistent = sandbox.run(&project, &["status", "--json"]);
+        assert_eq!(inconsistent.status.code(), Some(1), "{}: {}", manager, stdout(&inconsistent));
+        let findings = dependencies_findings(&inconsistent);
+        assert_eq!(findings.len(), 1, "{manager}: {}", stdout(&inconsistent));
+        let finding = &findings[0];
+        assert_eq!(
+            finding["rule"].as_str().unwrap(),
+            "dependencies.lockfile-mismatch"
+        );
+        assert_eq!(finding["severity"].as_str().unwrap(), "error");
+        assert_eq!(
+            finding["summary"].as_str().unwrap(),
+            format!("`{wrong}` is present, but aarshi.toml declares the `{manager}` package manager")
+        );
+        assert_eq!(finding["detail"].as_str().unwrap(), format!("expected {expected}"));
+        assert_eq!(finding["location"]["file"].as_str().unwrap(), wrong);
+    }
+}
+
+#[test]
+fn status_reports_missing_node_modules_as_a_todo() {
+    let sandbox = Sandbox::new("dependencies-modules");
+    let project = dependencies_project("dependencies-modules");
+    fs::remove_dir(project.join("node_modules")).unwrap();
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    // A `todo` alone keeps the exit code at 0.
+    assert_eq!(output.status.code(), Some(0));
+    let dependencies = dimension_of(&output, "dependencies");
+    assert_eq!(dependencies["todos"], 1);
+    assert_eq!(dependencies["errors"], 0);
+    let findings = dependencies["findings"].as_array().unwrap();
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(
+        finding["rule"].as_str().unwrap(),
+        "dependencies.modules-missing"
+    );
+    assert_eq!(finding["severity"].as_str().unwrap(), "todo");
+    assert_eq!(finding["summary"].as_str().unwrap(), "`node_modules/` is missing");
+    assert_eq!(finding["detail"].as_str().unwrap(), "run npm install");
+    assert_eq!(finding["location"]["file"].as_str().unwrap(), "node_modules/");
+
+    // The human report and the verdict stay green.
+    let human = sandbox.run(&project, &["status"]);
+    assert_eq!(human.status.code(), Some(0));
+    assert_eq!(
+        stdout(&human),
+        "config ✓\n\
+         i18n ✓\n\
+         pages ✓\n\
+         sections ✓\n\
+         components ✓\n\
+         dependencies\n\
+         \x20 todo: `node_modules/` is missing\n\
+         \n\
+         ✓ project is conformant (1 to do)\n"
+    );
+}
+
+#[test]
+fn status_absorbs_an_unreadable_package_json() {
+    // The fixture index imports `next` bare: without a readable
+    // `package.json` the dimension says nothing rather than flooding (the
+    // transverse rule absorbs an unreadable file).
+    let sandbox = Sandbox::new("dependencies-absorbed");
+    let project = dependencies_project("dependencies-absorbed");
+    fs::remove_file(project.join("package.json")).unwrap();
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(stdout(&output).contains("dependencies ✓"), "{}", stdout(&output));
+
+    // Invalid JSON is absorbed the same way.
+    let project = dependencies_project("dependencies-absorbed");
+    fs::write(project.join("package.json"), "not json\n").unwrap();
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(stdout(&output).contains("dependencies ✓"), "{}", stdout(&output));
 }

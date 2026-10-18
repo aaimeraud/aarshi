@@ -1,4 +1,5 @@
 mod config;
+mod dependencies;
 mod i18n;
 mod pages;
 mod render;
@@ -200,7 +201,9 @@ const COLLECTORS: &[Collector] = &[
     i18n::collect,
     pages::collect,
     sections::collect,
-    // `components` and `dependencies` likewise.
+    // `components` (ticket 0028) arrives with its own ticket, before the
+    // canonical last slot of `dependencies`.
+    dependencies::collect,
 ];
 
 /// Runs the report. Returns `Ok` with exit code `0` (nothing broken), or
