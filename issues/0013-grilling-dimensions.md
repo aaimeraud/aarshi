@@ -3,6 +3,7 @@ labels: [wayfinder:grilling]
 parent: 0005-map-status.md
 blocked-by: [0006-grilling-invariants-i18n.md, 0007-grilling-invariants-pages.md, 0008-grilling-invariants-config.md]
 status: open
+assignee: aaimeraud
 ---
 
 # Dimensions canoniques de `status` : liste et identifiants stables

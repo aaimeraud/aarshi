@@ -30,12 +30,13 @@ Une spec validée et implémentable de `aarshi status` : une commande de diagnos
 - [Surface de `status` et absorption de `check`](0010-grilling-surface-status.md) : terme canonique « dimension » ; `check` = alias **visible** de `status` (mêmes flags/sortie/code, sans message de dépréciation) ; filtre `--dimension <nom>` répétable et validé par `clap` ; `--errors-only` seul mode court ; hors projet, arrêt avec `no aarshi.toml in this folder; nothing to check` ; `status` en dernier dans l'aide ; doc déléguée au ticket de livraison.
 - [Invariants i18n : lesquels `status` vérifie-t-il, et à quelle gravité ?](0006-grilling-invariants-i18n.md) : config i18n vérifiée en entier (`languages` ↔ `aarshi.toml`, `defaultLocale`, `direction`, `index.ts`) = `error` ; dictionnaires : fichier absent / clé manquante / doublon = `error`, valeur vide (blancs inclus) / clé en trop / dictionnaire orphelin = `todo` ; l'attente des clés attendues d'une vue est rattachée au ticket pages/sections.
 - [Invariants pages, routes, sections et composants : lesquels `status` vérifie-t-il ?](0007-grilling-invariants-pages.md) : vue ↔ route (deux sens) + clé `"<page>.title"` + sitemap + import de vue = `error` ; sections : import pendant / clé / marqueur = `error`, section orpheline = `todo` ; icône `.svg` sans `.tsx` = `todo` (`.tsx` sans `.svg` ignoré) ; les imports connus doivent résoudre (`error`), les composants `custom` non utilisés ne sont pas signalés ; les clés attendues viennent du filesystem.
+- [Invariants config/projet et outillage : lesquels `status` vérifie-t-il ?](0008-grilling-invariants-config.md) : `aarshi.toml` étendu (`ui`, `icons`, `cache_components`, `site_url` ; **pas** `agent_feedback`) et options contrôlées contre le projet ; fichiers/dossiers de base, redirect `next.config.ts` et marqueur sitemap = `error` ; dépendances non déclarées et lockfile incohérent = `error`, `node_modules` absent et clé de config manquante = `todo` ; la ligne de télémétrie `.env` n'est pas vérifiée.
 
 ## Not yet specified
 
 - Extensibilité : `status` doit-il permettre au dev de déclarer ses propres contrôles (registre, config) ?
 - Prise en compte des commandes aarshi futures dans le catalogue d'invariants (par ex. un futur `aarshi update`).
-- Comportement sur un projet généré par une version antérieure d'aarshi (versionnage du scaffolding, migration).
+- Versionnage explicite du scaffolding généré et migration (au-delà du cas « clé absente d'`aarshi.toml` », tranché dans le catalogue config).
 
 ## Out of scope
 
