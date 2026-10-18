@@ -1,7 +1,7 @@
 ---
 labels: [wayfinder:grilling]
 parent: 0005-map-status.md
-blocked-by: [0006-grilling-invariants-i18n.md, 0007-grilling-invariants-pages.md, 0008-grilling-invariants-config.md]
+blocked-by: [0006-grilling-invariants-i18n.md, 0007-grilling-invariants-pages.md, 0008-grilling-invariants-config.md, 0013-grilling-dimensions.md]
 status: open
 ---
 
@@ -28,6 +28,7 @@ Une fois le catalogue d'invariants fixé (tickets « catalogue »), quel est le 
 - Stabilité : le schéma est-il un contrat public (à documenter et versionner) ou un détail interne ?
 - Interaction avec `print_header` (`AARSHI_NO_HEADER`), les couleurs et le TTY en mode `--json` (JSON strict sur stdout ?).
 - Impact dépendance : introduire `serde_json` dans `Cargo.toml`.
+- Sortie sous filtre et mode court : avec `--dimension <nom>`, le code de sortie reflète-t-il encore les `error` des dimensions masquées ? Le `--json` ne contient-il que les dimensions sélectionnées ? `--errors-only` change-t-il le code de sortie ou le contenu du JSON ?
 
 S'appuie sur [Recherche : comment les CLI conçoivent une commande de diagnostic (`doctor`/`status`)](0009-research-doctor-cli.md) : code dédié à l'erreur interne (2 ?) ; `format_version` versionné ; identifiant de règle stable ; JSON strict sur stdout ; SARIF plutôt hors v1.
 

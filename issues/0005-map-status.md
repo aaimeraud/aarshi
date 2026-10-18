@@ -25,6 +25,7 @@ Une spec validée et implémentable de `aarshi status` : une commande de diagnos
 <!-- l'index : une ligne par ticket fermé, avec son gist et le lien vers le détail -->
 
 - [Recherche : comment les CLI conçoivent une commande de diagnostic (`doctor`/`status`)](0009-research-doctor-cli.md) : catégories nommées et stables ; gravité `error`/`warning` ; code de sortie binaire (non nul si et seulement s'il y a ≥ 1 `error`) + code dédié à l'erreur interne ; `--json` versionné à identifiants de règle stables ; SARIF hors v1.
+- [Surface de `status` et absorption de `check`](0010-grilling-surface-status.md) : terme canonique « dimension » ; `check` = alias **visible** de `status` (mêmes flags/sortie/code, sans message de dépréciation) ; filtre `--dimension <nom>` répétable et validé par `clap` ; `--errors-only` seul mode court ; hors projet, arrêt avec `no aarshi.toml in this folder; nothing to check` ; `status` en dernier dans l'aide ; doc déléguée au ticket de livraison.
 
 ## Not yet specified
 

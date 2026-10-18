@@ -2,7 +2,7 @@
 labels: [wayfinder:grilling]
 parent: 0005-map-status.md
 blocked-by: [0009-research-doctor-cli.md]
-status: open
+status: closed
 assignee: aaimeraud
 ---
 
@@ -23,4 +23,20 @@ S'appuie sur [Recherche : comment les CLI conçoivent une commande de diagnostic
 
 ## Resolution
 
-<!-- à remplir à la résolution -->
+**Terme canonique** : **dimension**. C'est le mot de la carte et de cette spec ; la recherche disait « catégorie », `npm doctor` « group », `brew doctor` « check ». « Dimension » sert de vocabulaire et de nom de flag. (Où le consigner relève du ticket « Livraison et emplacement de la spec » ; les valeurs et identifiants sont produits par le nouveau ticket « Dimensions canoniques de `status` ».)
+
+**Alias `check`** : `status` porte `#[command(visible_alias = "check")]`. `aarshi check` continue de fonctionner à l'identique (mêmes flags, même sortie, même code), et l'aide liste `check` comme alias de `status`. Aucun message de dépréciation (le CLI n'est pas publié). La sous-commande `Command::Check` disparaît.
+
+**Filtre par dimension** : option `--dimension <nom>`, répétable, virgules acceptées (`--dimension routes,translations`), défaut = toutes les dimensions. Les valeurs valides forment une liste fermée validée par `clap` (`value_parser`) : une dimension inconnue est une erreur d'usage (code 2, comme `clap` le fait déjà, ce qui s'aligne sur le code « usage/interne » de la recherche). La **liste canonique des valeurs** est produite par le nouveau ticket « Dimensions canoniques de `status` ».
+
+**Modes courts** : `--errors-only` **uniquement** — masque les `todo`, garde les `error` et un résumé ; le code de sortie reste inchangé (les `todo` ne l'affectent jamais). Pas de `--short` : c'est de la mise en forme fragmentaire, sans valeur pour l'automatisation (couverte par `--json`) et coûteuse à figer dans le contrat de sortie humaine.
+
+**Hors projet aarshi** : arrêt immédiat, sans rapport dégradé, avec `error: no aarshi.toml in this folder; nothing to check` sur stderr. Ce message remplace celui de `check` (`not an aarshi project: …`). Le code de sortie associé est tranché par le ticket « Contrat de sortie ».
+
+**Place dans l'aide** : `status` est déclaré en dernier, à la place de `check` (`setup`, `add`, `add-lang`, `icons`, `status`).
+
+**Doc** : la mise à jour de `README.md` / `README.fr.md` et `CONVENTIONS.md` / `CONVENTIONS.fr.md` est déléguée au ticket « Livraison et emplacement de la spec de `status` ».
+
+**Wording (niveau spec, ajustable à l'implémentation)** : texte d'aide `about` proposé — `Report what is missing or wrong in the Next.js project`.
+
+**Interactions laissées au ticket « Contrat de sortie »** : l'effet du filtre `--dimension` et de `--errors-only` sur le code de sortie et sur la sortie `--json`.
