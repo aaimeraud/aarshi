@@ -3,6 +3,7 @@ labels: [wayfinder:grilling]
 parent: 0005-map-status.md
 blocked-by: [0009-research-doctor-cli.md]
 status: open
+assignee: aaimeraud
 ---
 
 # Surface de `status` et absorption de `check`
