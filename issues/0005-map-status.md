@@ -19,6 +19,7 @@ Une spec validée et implémentable de `aarshi status` : une commande de diagnos
 - **Directions fixées au charting** (elles cadrent les tickets) : `status` absorbe `check`, qui devient un alias ; rapport groupé par dimension ; deux gravités, `error` (conformité cassée) et `todo` (reste-à-faire attendu) ; v1 = présence + câblage, sémantique TS reportée ; attentes dérivées de `aarshi.toml` + découverte de l'état réel, pas de manifeste figé ; le travail manuel du dev est couvert ; lecture seule stricte ; sortie humaine + `--json`.
 - Préférences standing : sortie CLI en anglais (cohérente avec `error:` / `success:` / `info:`), issues en français ; aucune écriture dans le projet analysé.
 - Notes de recherche : dossier `research/` à la racine du dépôt (un fichier par ticket de recherche) ; chaque ticket `wayfinder:research` pointe vers son fichier.
+- Exécution : cet effort autorise d'enchaîner plusieurs tickets dans une même session (demande explicite) ; l'agent ouvre le ticket suivant dès qu'une résolution est enregistrée. Chaque résolution est commitée séparément pour pouvoir s'arrêter à tout moment.
 
 ## Decisions so far
 
