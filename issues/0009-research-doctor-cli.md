@@ -21,7 +21,7 @@ Cette recherche éclaire la surface de la commande (ticket « Surface de `status
 
 ## Resolution
 
-**Réponse** — fichier de recherche : `research/doctor-cli-conventions.md`, sur la branche jetable `research/doctor-cli-conventions` (jamais fusionnée, **aucune PR** ; poussée sur `origin`). Chaque affirmation y est citée à sa source primaire (docs et code de `npm doctor`, ESLint, `terraform validate`, `brew doctor`, Flutter, `rustup`, GitHub CLI, ShellCheck, Prisma, Cargo ; schéma OASIS SARIF 2.1.0).
+**Réponse** — fichier de recherche : `research/doctor-cli-conventions.md`, conservé avec cette carte : il arrive sur la branche de la carte (et donc sur `dev`) en même temps que la spec. Chaque affirmation y est citée à sa source primaire (docs et code de `npm doctor`, ESLint, `terraform validate`, `brew doctor`, Flutter, `rustup`, GitHub CLI, ShellCheck, Prisma, Cargo ; schéma OASIS SARIF 2.1.0).
 
 Synthèse retenue :
 
