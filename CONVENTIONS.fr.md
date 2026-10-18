@@ -15,8 +15,10 @@ Conventions pour le dépôt `aarshi` et pour les projets qu'il génère. Version
 - TypeScript, Next.js App Router, Tailwind, ESLint, sans dossier `src/`.
 - `AGENTS.md` est généré à la racine du projet.
 - La télémétrie est désactivée par projet (`.env`), pas globalement.
-- Structure : `views/` pour les vues de page, `sections/` pour les sections, une route par langue, dictionnaires typés par langue.
+- Structure : `views/` pour les vues de page, `sections/` pour les sections, une arborescence de routes commune sous `app/[locale]/`, dictionnaires typés par langue.
 - Le sens d'écriture (`ltr` ou `rtl`) vient de la langue, pas de la page.
+- Composants : shadcn (stylisé, basé sur Base UI) par défaut, ou Base UI directement. Les classes passent par `cn` de `@sglara/cn`. `components/custom/` contient les composants du projet, `components/icons/` les SVG convertis par `aarshi icons`.
+- Le TypeScript généré utilise des fonctions fléchées et des exports nommés pour les sections, les icônes et les composants personnalisés.
 
 ## Non spécifié
 
