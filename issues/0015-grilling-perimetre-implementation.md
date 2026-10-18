@@ -2,7 +2,7 @@
 labels: [wayfinder:grilling]
 parent: 0014-map-implementation-status.md
 blocked-by: []
-status: open
+status: closed
 ---
 
 # Périmètre de la carte d'implémentation
