@@ -1,3 +1,4 @@
+mod config;
 mod i18n;
 mod pages;
 mod render;
@@ -6,7 +7,7 @@ use std::{env, fmt, str::FromStr};
 
 use anyhow::Result;
 
-use crate::{config::{self, Config}};
+use crate::config::Config;
 
 /// A dimension of the report: an independent family of checks with a stable
 /// lowercase identifier, listed in canonical display order.
@@ -194,7 +195,7 @@ impl std::error::Error for Exit {}
 type Collector = fn(&std::path::Path, &Config, &mut Vec<Finding>);
 
 const COLLECTORS: &[Collector] = &[
-    // `config` arrives with its own dimension ticket.
+    config::collect,
     i18n::collect,
     pages::collect,
     // `sections`, `components` and `dependencies` likewise.
@@ -205,7 +206,7 @@ const COLLECTORS: &[Collector] = &[
 /// `Err(status::Exit { 2 })` when the project cannot be analyzed.
 pub fn run(options: Options) -> Result<()> {
     let root = env::current_dir()?;
-    if !config::is_aarshi_project(&root) {
+    if !crate::config::is_aarshi_project(&root) {
         return Err(Exit::new(
             2,
             "no aarshi.toml in this folder; nothing to check",
