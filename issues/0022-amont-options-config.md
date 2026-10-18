@@ -2,7 +2,7 @@
 labels: [wayfinder:implement]
 parent: 0014-map-implementation-status.md
 blocked-by: []
-status: open
+status: closed
 ---
 
 # Amont : écriture étendue d'`aarshi.toml`
@@ -15,7 +15,7 @@ Cette tranche **clôt le grilling [0015](0015-grilling-perimetre-implementation.
 
 ## Critères d'acceptance
 
-- [ ] Un projet créé par cette version de `setup` porte les six clés ; un test noir le vérifie.
-- [ ] `add-lang` ajoute une langue sans perdre `ui`, `icons`, `cache_components`, `site_url` ; test noir.
-- [ ] Un `aarshi.toml` à l'ancien format (la seule présence de `languages` suffit : `package_manager` est déjà optionnel) parse sans erreur ; test noir.
-- [ ] La résolution de 0015 est rédigée et le ticket passe à `closed`.
+- [x] Un projet créé par cette version de `setup` porte les six clés ; un test noir le vérifie.
+- [x] `add-lang` ajoute une langue sans perdre `ui`, `icons`, `cache_components`, `site_url` ; test noir.
+- [x] Un `aarshi.toml` à l'ancien format (la seule présence de `languages` suffit : `package_manager` est déjà optionnel) parse sans erreur ; test noir.
+- [x] La résolution de 0015 est rédigée et le ticket passe à `closed`.
