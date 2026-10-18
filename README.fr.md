@@ -2,7 +2,7 @@
 
 Un CLI en Rust qui génère des sites Next.js multilingues (App Router) avec `views/`, `sections/`, une arborescence de routes commune par préfixe de langue et des dictionnaires typés. Le projet généré est en TypeScript.
 
-Statut : le CLI v1 est en revue (PR #4). Voir [`issues/0001-map.md`](issues/0001-map.md) pour les décisions et les points ouverts.
+Statut : le CLI v1 est en revue (PR #4), et `aarshi status` est désormais implémenté. Voir [`issues/0001-map.md`](issues/0001-map.md) pour les décisions et les points ouverts.
 
 Version anglaise : [`README.md`](README.md). Conventions : [`CONVENTIONS.fr.md`](CONVENTIONS.fr.md).
 
@@ -17,7 +17,19 @@ Chaque commande demande les valeurs qui ne sont pas passées en argument. Passer
 - `aarshi add -c <nom>` : ajoute un composant de départ dans `components/custom/`.
 - `aarshi add-lang <code>` : ajoute une langue (par ex. `de`) à un projet existant. Crée son dictionnaire avec des valeurs vides et met à jour la liste des langues.
 - `aarshi icons` : liste les fichiers `.svg` de `components/icons/` sous forme de cases à cocher et convertit ceux qui sont sélectionnés en composants React (`--all` convertit tout sans rien demander). `class` devient `className`, les attributs passent en camelCase, les styles en ligne deviennent des objets, et les valeurs simples passent en classes Tailwind (`width`/`height` vers `size-*`, `fill="currentColor"` vers `fill-current`, `fill="none"` vers `fill-none`, `stroke="currentColor"` vers `stroke-current`). Un composant existant n'est jamais écrasé.
-- `aarshi check` : liste les traductions vides, les clés manquantes et les routes manquantes. Ne modifie rien, et sort en erreur quand il trouve un problème.
+
+### aarshi status
+
+Signale ce qui manque ou ce qui ne va pas dans le projet généré. Un diagnostic en lecture seule : il ne modifie rien. `check` est un alias visible affiché dans l'aide, et `aarshi check` produit exactement le même rapport que `aarshi status`.
+
+Le rapport affiche une ligne par dimension, dans l'ordre canonique (`config`, `i18n`, `pages`, `sections`, `components`, `dependencies`). Une dimension sans rien à signaler reçoit un `✓` ; les constats sont indentés sous leur dimension et préfixés `error:` (rouge) ou `todo:` (jaune). La dernière ligne est le verdict sur le projet entier : `✓ project is conformant`, `✓ project is conformant (N to do)` quand il ne reste que des constats `todo:`, ou `error: N errors, M to do` quand au moins une règle est cassée.
+
+- Codes de sortie : `0` quand aucune `error` n'a été trouvée (des problèmes de gravité `todo` seuls laissent `0`), `1` quand au moins une `error` a été trouvée, `2` quand le projet ne peut pas être analysé (`aarshi.toml` absent, illisible ou invalide) : le message va sur stderr et rien n'est écrit sur stdout.
+- `--dimension <nom>` : restreint le rapport aux dimensions données. Le flag est répétable et accepte les virgules (`--dimension config,i18n`) ; les valeurs sont les six identifiants canoniques : `config`, `i18n`, `pages`, `sections`, `components`, `dependencies`. Seul l'affichage est filtré : le code de sortie et le résumé JSON restent calculés sur le projet entier, et une ligne `info: N findings hidden by --dimension` précise combien de constats le filtre masque.
+- `--errors-only` : masque les constats `todo:`. Le verdict et le code de sortie restent inchangés.
+- `--json` : écrit un document JSON unique sur stdout : `format_version` (actuellement `1`), un `summary` global (`errors`, `todos`, `conformant`) calculé sur le projet entier, et les `dimensions` sélectionnées — six sauf filtre, chacune avec ses compteurs et ses `findings`. Un constat porte `rule` (un identifiant stable de forme `<dimension>.<sujet>-<problème>`), `severity` (`error` ou `todo`), `summary` (la ligne montrée à l'humain), `detail` et `location` optionnels, cette dernière ne portant que les clés pertinentes (`file`, `locale`, `key`). En cas de sortie code `2`, stdout reste vide.
+
+Le catalogue des règles vérifiées par `status` est listé par dimension dans [`CONVENTIONS.fr.md`](CONVENTIONS.fr.md).
 
 ## Projet généré
 
