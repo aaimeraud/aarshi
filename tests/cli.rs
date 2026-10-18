@@ -78,6 +78,19 @@ impl Sandbox {
     fn add(&self, project: &Path, args: &[&str]) -> Output {
         self.run(project, &[&["add"], args].concat())
     }
+
+    /// Runs without `AARSHI_NO_HEADER`, so `status` shows its banner.
+    fn run_with_header(&self, cwd: &Path, args: &[&str]) -> Output {
+        let path = format!("{}:{}", self.bin.display(), std::env::var("PATH").unwrap());
+        Command::new(env!("CARGO_BIN_EXE_aarshi"))
+            .args(args)
+            .current_dir(cwd)
+            .env("PATH", path)
+            .env("HOME", &self.home)
+            .env("AARSHI_TEST_LOG", &self.log)
+            .output()
+            .unwrap()
+    }
 }
 
 fn make_executable(path: &Path) {
@@ -91,6 +104,475 @@ fn read(path: &Path) -> String {
 
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
+}
+
+fn stdout(output: &Output) -> String {
+    String::from_utf8_lossy(&output.stdout).into_owned()
+}
+
+// ==== `status` (tracer slice) ============================================
+
+/// Writes one `<locale>.ts` dictionary with `"key": "value",` lines.
+fn write_dictionary(root: &Path, locale: &str, entries: &[(&str, &str)]) {
+    let keys = entries
+        .iter()
+        .map(|(key, value)| format!("  \"{key}\": \"{value}\",\n"))
+        .collect::<String>();
+    fs::write(
+        root.join(format!("lib/i18n/dictionaries/{locale}.ts")),
+        format!("export const messages = {{\n{keys}}};\n"),
+    )
+    .unwrap();
+}
+
+/// A minimal generated project covering the tracer `i18n` checks: two
+/// languages with consistent config and complete dictionaries. The project
+/// lives in a `project/` subfolder to stay clear of the sandbox files.
+fn i18n_project(name: &str) -> PathBuf {
+    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name).join("project");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("lib/i18n/dictionaries")).unwrap();
+    fs::write(
+        root.join("aarshi.toml"),
+        "languages = [\"fr\", \"en\"]\npackage_manager = \"npm\"\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join("lib/i18n/config.ts"),
+        "export const languages = [\"fr\", \"en\"] as const;\n",
+    )
+    .unwrap();
+    write_dictionary(&root, "fr", &[("home.title", "Accueil")]);
+    write_dictionary(&root, "en", &[("home.title", "Home")]);
+    root
+}
+
+/// The clean project plus one error (dictionary gone) and one to do
+/// (empty-after-trim value), the two severities the tracer covers.
+fn broken_project(name: &str) -> PathBuf {
+    let root = i18n_project(name);
+    fs::remove_file(root.join("lib/i18n/dictionaries/en.ts")).unwrap();
+    write_dictionary(&root, "fr", &[("home.title", "Accueil"), ("home.intro", " ")]);
+    root
+}
+
+/// The clean project plus one `todo` only: the same empty key in both
+/// dictionaries, so no key is missing.
+fn todo_project(name: &str) -> PathBuf {
+    let root = i18n_project(name);
+    write_dictionary(&root, "fr", &[("home.title", "Accueil"), ("home.intro", "")]);
+    write_dictionary(&root, "en", &[("home.title", "Home"), ("home.intro", "")]);
+    root
+}
+
+#[test]
+fn status_reproduces_the_contract_render_on_a_fixture() {
+    let sandbox = Sandbox::new("status-render");
+    let project = broken_project("status-render");
+
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(
+        stdout(&output),
+        "config ✓\n\
+         i18n\n\
+         \x20 error: no dictionary for `en`\n\
+         \x20 todo: fr has an empty translation for `home.intro`\n\
+         pages ✓\n\
+         sections ✓\n\
+         components ✓\n\
+         dependencies ✓\n\
+         \n\
+         error: 1 error, 1 to do\n"
+    );
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).is_empty());
+}
+
+#[test]
+fn status_lists_every_dimension_and_verifies_them_all_clean() {
+    let sandbox = Sandbox::new("status-clean");
+    let project = i18n_project("status-clean");
+
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        stdout(&output),
+        "config ✓\n\
+         i18n ✓\n\
+         pages ✓\n\
+         sections ✓\n\
+         components ✓\n\
+         dependencies ✓\n\
+         \n\
+         ✓ project is conformant\n"
+    );
+}
+
+#[test]
+fn status_todos_alone_still_exit_zero() {
+    let sandbox = Sandbox::new("status-todos");
+    let project = todo_project("status-todos");
+
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        stdout(&output),
+        "config ✓\n\
+         i18n\n\
+         \x20 todo: en has an empty translation for `home.intro`\n\
+         \x20 todo: fr has an empty translation for `home.intro`\n\
+         pages ✓\n\
+         sections ✓\n\
+         components ✓\n\
+         dependencies ✓\n\
+         \n\
+         ✓ project is conformant (2 to do)\n"
+    );
+}
+
+#[test]
+fn status_counts_whitespace_values_as_empty() {
+    let sandbox = Sandbox::new("status-blank");
+    let project = i18n_project("status-blank");
+    write_dictionary(&project, "en", &[("home.title", " "), ("intro.text", "\n")]);
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert!(
+        report.contains("todo: en has an empty translation for `home.title`"),
+        "{report}"
+    );
+    assert!(
+        report.contains("todo: en has an empty translation for `intro.text`"),
+        "{report}"
+    );
+    assert!(report.contains("✓ project is conformant (2 to do)"), "{report}");
+}
+
+#[test]
+fn status_reports_a_key_missing_from_a_non_default_dictionary() {
+    let sandbox = Sandbox::new("status-key-missing");
+    let project = i18n_project("status-key-missing");
+    write_dictionary(&project, "en", &[]);
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        report.contains("error: en is missing a translation for `home.title`"),
+        "{report}"
+    );
+    assert!(report.contains("error: 1 error"), "{report}");
+}
+
+#[test]
+fn status_reports_a_languages_mismatch() {
+    let sandbox = Sandbox::new("status-mismatch");
+    let project = i18n_project("status-mismatch");
+    fs::write(
+        project.join("lib/i18n/config.ts"),
+        "export const languages = [\"fr\"] as const;\n",
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        report.contains("error: lib/i18n/config.ts lists [\"fr\"], but aarshi.toml lists [\"fr\", \"en\"]"),
+        "{report}"
+    );
+}
+
+#[test]
+fn check_gives_the_same_report_as_status() {
+    let sandbox = Sandbox::new("status-alias");
+    let project = broken_project("status-alias");
+
+    let with_status = sandbox.run(&project, &["status"]);
+    let with_check = sandbox.run(&project, &["check"]);
+    assert_eq!(stdout(&with_status), stdout(&with_check));
+    assert_eq!(stderr(&with_status), stderr(&with_check));
+    assert_eq!(with_status.status.code(), with_check.status.code());
+    assert_eq!(with_status.status.code(), Some(1));
+}
+
+#[test]
+fn the_help_lists_status_last_with_check_as_alias() {
+    let sandbox = Sandbox::new("status-help");
+    let output = sandbox.run(&sandbox.root, &["--help"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    let help = stdout(&output);
+
+    let position = |needle: &str| help.find(needle).expect(needle);
+    assert!(
+        position("setup") < position("add") && position("add") < position("add-lang"),
+        "{help}"
+    );
+    assert!(position("add-lang") < position("icons"), "{help}");
+    assert!(position("icons") < position("status"), "{help}");
+    assert!(status_last_with_alias_shown_in_help(&help), "{help}");
+    assert!(
+        !help.contains("Report empty translations and missing routes"),
+        "`--help` should no longer promote `check`: {help}"
+    );
+
+    let about = sandbox.run(&sandbox.root, &["status", "--help"]);
+    let status_help = stdout(&about);
+    assert!(
+        status_help.contains("Report what is missing or wrong in the Next.js project"),
+        "{status_help}"
+    );
+    assert!(status_help.contains("--dimension"), "{status_help}");
+    assert!(status_help.contains("--errors-only"), "{status_help}");
+    assert!(status_help.contains("--json"), "{status_help}");
+}
+
+/// Stands for the visible `check` alias in the `status` help entry.
+fn status_last_with_alias_shown_in_help(help: &str) -> bool {
+    help.split('\n')
+        .find(|line| line.contains("status"))
+        .map(|entry| entry.contains("check"))
+        .unwrap_or(false)
+}
+
+#[test]
+fn an_unknown_dimension_is_a_usage_error() {
+    let sandbox = Sandbox::new("status-dimension-unknown");
+    let project = i18n_project("status-dimension-unknown");
+
+    let output = sandbox.run(&project, &["status", "--dimension", "nope"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("invalid value 'nope'"), "{}", stderr(&output));
+    assert!(stdout(&output).is_empty());
+}
+
+#[test]
+fn status_exits_two_outside_a_project_and_prints_nothing() {
+    let sandbox = Sandbox::new("status-outside");
+
+    let output = sandbox.run(&sandbox.root, &["status"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+    assert!(
+        stderr(&output).contains("no aarshi.toml in this folder; nothing to check"),
+        "{}",
+        stderr(&output)
+    );
+
+    // The message replaces the old `check` wording, also under the alias.
+    let output = sandbox.run(&sandbox.root, &["check"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("no aarshi.toml in this folder; nothing to check"));
+}
+
+#[test]
+fn status_json_matches_the_v1_schema_field_per_field() {
+    let sandbox = Sandbox::new("status-json");
+    let project = broken_project("status-json");
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stdout(&output),
+        r#"{
+  "format_version": 1,
+  "summary": {
+    "errors": 1,
+    "todos": 1,
+    "conformant": false
+  },
+  "dimensions": [
+    {
+      "id": "config",
+      "errors": 0,
+      "todos": 0,
+      "findings": []
+    },
+    {
+      "id": "i18n",
+      "errors": 1,
+      "todos": 1,
+      "findings": [
+        {
+          "rule": "i18n.dictionary-missing",
+          "severity": "error",
+          "summary": "no dictionary for `en`",
+          "detail": "expected lib/i18n/dictionaries/en.ts",
+          "location": {
+            "file": "lib/i18n/dictionaries/en.ts",
+            "locale": "en"
+          }
+        },
+        {
+          "rule": "i18n.key-empty",
+          "severity": "todo",
+          "summary": "fr has an empty translation for `home.intro`",
+          "location": {
+            "file": "lib/i18n/dictionaries/fr.ts",
+            "locale": "fr",
+            "key": "home.intro"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pages",
+      "errors": 0,
+      "todos": 0,
+      "findings": []
+    },
+    {
+      "id": "sections",
+      "errors": 0,
+      "todos": 0,
+      "findings": []
+    },
+    {
+      "id": "components",
+      "errors": 0,
+      "todos": 0,
+      "findings": []
+    },
+    {
+      "id": "dependencies",
+      "errors": 0,
+      "todos": 0,
+      "findings": []
+    }
+  ]
+}
+"#
+    );
+}
+
+#[test]
+fn status_json_stays_strict_without_header_env_and_outside_a_project() {
+    let sandbox = Sandbox::new("status-json-strict");
+    let project = i18n_project("status-json-strict");
+
+    // AARSHI_NO_HEADER unset: no banner, no color, valid JSON only.
+    let output = sandbox.run_with_header(&project, &["status", "--json"]);
+    let document = stdout(&output);
+    assert!(document.starts_with('{'), "{document}");
+    assert!(!document.contains('\u{1b}'), "{document}");
+    assert!(document.contains("format_version"), "{document}");
+    serde_json::from_str::<serde_json::Value>(&document)
+        .unwrap_or_else(|e| panic!("invalid JSON: {e}\n{document}"));
+
+    // Stopped run: nothing on stdout even in JSON mode, still code 2.
+    let output = sandbox.run(&sandbox.root, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stdout(&output).is_empty());
+    assert!(serde_json::from_str::<serde_json::Value>(&stdout(&output)).is_err());
+}
+
+#[test]
+fn status_json_keeps_the_filter_to_selected_dimensions() {
+    let sandbox = Sandbox::new("status-json-filter");
+    let project = broken_project("status-json-filter");
+
+    let output = sandbox.run(
+        &project,
+        &["status", "--json", "--dimension", "i18n,dependencies"],
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let document = serde_json::from_str::<serde_json::Value>(&stdout(&output)).unwrap();
+    let ids: Vec<&str> = document["dimensions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| d["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["i18n", "dependencies"], "{}", stdout(&output));
+    // The summary never narrows to the filter: the hidden error still bites.
+    assert_eq!(document["summary"]["errors"], 1);
+}
+
+#[test]
+fn status_json_errors_only_drops_todos_but_keeps_the_counters() {
+    let sandbox = Sandbox::new("status-json-errors-only");
+    let project = todo_project("status-json-errors-only");
+
+    let output = sandbox.run(&project, &["status", "--json", "--errors-only"]);
+    assert_eq!(output.status.code(), Some(0));
+    let document = serde_json::from_str::<serde_json::Value>(&stdout(&output)).unwrap();
+    let i18n = &document["dimensions"][1];
+    assert_eq!(i18n["id"], "i18n");
+    assert_eq!(i18n["todos"], 2, "{}", stdout(&output));
+    assert!(
+        i18n["findings"].as_array().unwrap().is_empty(),
+        "{}",
+        stdout(&output)
+    );
+    // Summary still counts the to dos.
+    assert_eq!(document["summary"]["todos"], 2);
+}
+
+#[test]
+fn status_human_output_reports_hidden_findings_under_a_filter() {
+    let sandbox = Sandbox::new("status-hidden");
+    let project = broken_project("status-hidden");
+
+    let output = sandbox.run(&project, &["status", "--dimension", "pages"]);
+    assert_eq!(
+        stdout(&output),
+        "pages ✓\n\
+         \n\
+         error: 1 error, 1 to do\n\
+         info: 2 findings hidden by --dimension\n"
+    );
+
+    // Repeats and comma lists pick the same dimensions.
+    let repeated = sandbox.run(
+        &project,
+        &["status", "--dimension", "pages", "--dimension", "pages"],
+    );
+    assert_eq!(stdout(&repeated), stdout(&output));
+    let listed = sandbox.run(&project, &["status", "--dimension", "pages,components"]);
+    assert!(stdout(&listed).starts_with("pages ✓\ncomponents ✓\n"), "{}", stdout(&listed));
+    // The exit code still comes from the hidden errors of the whole project.
+    assert_eq!(listed.status.code(), Some(1));
+}
+
+#[test]
+fn status_shows_the_header_in_human_mode_but_not_in_json() {
+    let sandbox = Sandbox::new("status-header");
+    let project = i18n_project("status-header");
+
+    let output = sandbox.run_with_header(&project, &["status"]);
+    assert!(stdout(&output).contains("version"), "{}", stdout(&output));
+
+    let header = sandbox.run_with_header(&project, &["status", "--json"]);
+    let document = stdout(&header);
+    assert!(document.starts_with('{'), "{document}");
+    assert!(!document.contains("github"), "{document}");
+}
+
+#[test]
+fn status_reports_empty_translations_until_they_are_filled() {
+    let sandbox = Sandbox::new("status-filled");
+    let project = sandbox.setup("site", &[]);
+    sandbox.run(&project, &["add-lang", "de"]);
+
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(0));
+    let report = stdout(&output);
+    assert!(
+        report.contains("todo: de has an empty translation for `home.title`"),
+        "{report}"
+    );
+    assert!(report.contains("✓ project is conformant (3 to do)"), "{report}");
+
+    for locale in ["fr", "en", "de"] {
+        let path = project.join(format!("lib/i18n/dictionaries/{locale}.ts"));
+        let filled = read(&path).replace("\"home.title\": \"\"", "\"home.title\": \"Home\"");
+        fs::write(&path, filled).unwrap();
+    }
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(0));
+    let report = stdout(&output);
+    assert!(report.contains("✓ project is conformant\n"), "{report}");
 }
 
 #[test]
@@ -589,33 +1071,6 @@ fn add_lang_rejects_a_language_already_in_the_project() {
     let output = sandbox.run(&project, &["add-lang", "en"]);
     assert!(!output.status.success());
     assert!(stderr(&output).contains("already exists"));
-}
-
-#[test]
-fn check_reports_empty_translations_until_they_are_filled() {
-    let sandbox = Sandbox::new("check");
-    let project = sandbox.setup("site", &[]);
-    sandbox.run(&project, &["add-lang", "de"]);
-
-    let output = sandbox.run(&project, &["check"]);
-    assert!(!output.status.success());
-    let report = String::from_utf8_lossy(&output.stdout).into_owned();
-    assert!(
-        report.contains("de: empty translation for `home.title`"),
-        "{report}"
-    );
-
-    for locale in ["fr", "en", "de"] {
-        let path = project.join(format!("lib/i18n/dictionaries/{locale}.ts"));
-        let filled = read(&path).replace("\"home.title\": \"\"", "\"home.title\": \"Home\"");
-        fs::write(&path, filled).unwrap();
-    }
-    let output = sandbox.run(&project, &["check"]);
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stdout)
-    );
 }
 
 #[test]

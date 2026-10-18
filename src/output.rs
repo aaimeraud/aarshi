@@ -57,6 +57,11 @@ pub fn warning(message: &str) -> String {
     format!("{} {}", "warning:".yellow().bold(), message)
 }
 
+/// Formats a to-do finding in yellow, symmetric of `warning()`.
+pub fn todo(message: &str) -> String {
+    format!("{} {}", "todo:".yellow().bold(), message)
+}
+
 /// Formats a success message in green.
 pub fn success(message: &str) -> String {
     format!("{} {}", "✓".green().bold(), message.green())
