@@ -35,9 +35,9 @@ pub fn run(options: AddOptions) -> Result<()> {
 
     if let Some(section) = options.section {
         let section = if section.is_empty() {
-            Text::new("Section name").prompt()?
+            prompt_name("section")?
         } else {
-            section
+            section.to_ascii_lowercase()
         };
         validate_name("section", &section)?;
         let page = ask_target_page(&root, languages, options.page)?;
@@ -45,10 +45,11 @@ pub fn run(options: AddOptions) -> Result<()> {
     }
     if let Some(component) = options.component {
         let component = if component.is_empty() {
-            Text::new("Component name").prompt()?
+            prompt_name("component")?
         } else {
-            component
+            component.to_ascii_lowercase()
         };
+        validate_name("component", &component)?;
         return create_custom_component(&root, &component);
     }
     if options.page_only {
@@ -67,8 +68,7 @@ pub fn run(options: AddOptions) -> Result<()> {
     .prompt()?
     {
         "Section" => {
-            let section = Text::new("Section name").prompt()?;
-            validate_name("section", &section)?;
+            let section = prompt_name("section")?;
             let page = ask_target_page(&root, languages, None)?;
             add_section(&root, languages, &page, &section)
         }
@@ -77,7 +77,7 @@ pub fn run(options: AddOptions) -> Result<()> {
             create_page(&root, languages, &page)
         }
         _ => {
-            let component = Text::new("Component name").prompt()?;
+            let component = prompt_name("component")?;
             create_custom_component(&root, &component)
         }
     }
@@ -86,8 +86,8 @@ pub fn run(options: AddOptions) -> Result<()> {
 /// The new page name, from the flag or the prompt.
 fn ask_new_page(page: Option<String>) -> Result<String> {
     let page = match page {
-        Some(page) => page,
-        None => Text::new("Page name").prompt()?,
+        Some(page) => page.to_ascii_lowercase(),
+        None => prompt_name("page")?,
     };
     validate_name("page", &page)?;
     Ok(page)
@@ -96,6 +96,7 @@ fn ask_new_page(page: Option<String>) -> Result<String> {
 /// The page a section goes into. Lists the pages of `views/` so the name cannot be misspelled.
 fn ask_target_page(root: &Path, languages: &[String], page: Option<String>) -> Result<String> {
     if let Some(page) = page {
+        let page = page.to_ascii_lowercase();
         validate_name("page", &page)?;
         return Ok(page);
     }
@@ -105,10 +106,21 @@ fn ask_target_page(root: &Path, languages: &[String], page: Option<String>) -> R
     if choice != NEW_PAGE {
         return Ok(choice);
     }
-    let page = Text::new("New page name").prompt()?;
-    validate_name("page", &page)?;
+    let page = prompt_name("page")?;
     create_page(root, languages, &page)?;
     Ok(page)
+}
+
+/// Ask for a lowercase identifier and keep asking until it is valid.
+fn prompt_name(kind: &str) -> Result<String> {
+    loop {
+        let value = Text::new(&format!("{} name", kind)).prompt()?;
+        let value = value.trim().to_ascii_lowercase();
+        match validate_name(kind, &value) {
+            Ok(()) => return Ok(value),
+            Err(error) => eprintln!("{error}"),
+        }
+    }
 }
 
 /// A starter component in `components/custom/`.

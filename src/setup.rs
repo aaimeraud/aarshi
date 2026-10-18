@@ -38,25 +38,49 @@ pub struct SetupOptions {
 
 pub fn run(options: SetupOptions) -> Result<()> {
     let user = Config::user()?;
-    let dir = match &options.dir {
+    let mut dir = match &options.dir {
         Some(dir) => dir.clone(),
         None if options.yes => bail!("a project folder is required with --yes"),
         None => Text::new("Project folder name").prompt()?,
     };
-    let root = target_root(&dir)?;
+    let root = loop {
+        match target_root(&dir) {
+            Ok(root) => break root,
+            Err(error) => {
+                if options.dir.is_some() || options.yes {
+                    return Err(error);
+                }
+                eprintln!("{error}");
+                dir = Text::new("Project folder name").prompt()?;
+            }
+        }
+    };
     let languages = select_languages(&options, &user)?;
     let default = select_default_language(&options, &languages)?;
     // The default language comes first: it is the one the dictionaries are typed from.
     let mut languages = languages;
     languages.sort_by_key(|language| language != &default);
-    let site_url = match &options.site_url {
+    let mut site_url_input = match &options.site_url {
         Some(url) => url.clone(),
         None if options.yes => DEFAULT_SITE_URL.to_string(),
         None => Text::new("Site URL")
             .with_default(DEFAULT_SITE_URL)
             .prompt()?,
     };
-    let site_url = normalize_site_url(&site_url)?;
+    let site_url = loop {
+        match normalize_site_url(&site_url_input) {
+            Ok(url) => break url,
+            Err(error) => {
+                if options.site_url.is_some() || options.yes {
+                    return Err(error);
+                }
+                eprintln!("{error}");
+                site_url_input = Text::new("Site URL")
+                    .with_default(DEFAULT_SITE_URL)
+                    .prompt()?;
+            }
+        }
+    };
     let manager = match &options.package_manager {
         Some(manager) => manager.clone(),
         None if options.yes => user.package_manager.clone(),
@@ -84,8 +108,9 @@ pub fn run(options: SetupOptions) -> Result<()> {
 /// The offered languages, preselected with the user config when it has some.
 fn select_languages(options: &SetupOptions, user: &Config) -> Result<Vec<String>> {
     if let Some(languages) = &options.languages {
-        config::validate_languages(languages)?;
-        return Ok(languages.clone());
+        let languages: Vec<String> = languages.iter().map(|l| l.to_ascii_lowercase()).collect();
+        config::validate_languages(&languages)?;
+        return Ok(languages);
     }
     if options.yes {
         return Ok(user.languages.clone());
@@ -100,12 +125,15 @@ fn select_languages(options: &SetupOptions, user: &Config) -> Result<Vec<String>
         .enumerate()
         .filter_map(|(index, (code, _))| user.languages.iter().any(|l| l == code).then_some(index))
         .collect();
-    let selected = MultiSelect::new("Languages", labels)
-        .with_default(&preselected)
-        .prompt()?;
-    if selected.is_empty() {
-        bail!("select at least one language");
-    }
+    let selected = loop {
+        let selected = MultiSelect::new("Languages", labels.clone())
+            .with_default(&preselected)
+            .prompt()?;
+        if !selected.is_empty() {
+            break selected;
+        }
+        eprintln!("error: select at least one language");
+    };
     let languages: Vec<String> = choices
         .into_iter()
         .filter(|(_, label)| selected.contains(label))
@@ -117,8 +145,14 @@ fn select_languages(options: &SetupOptions, user: &Config) -> Result<Vec<String>
 
 fn select_default_language(options: &SetupOptions, languages: &[String]) -> Result<String> {
     match &options.default_language {
-        Some(code) if languages.contains(code) => Ok(code.clone()),
-        Some(code) => bail!("default language `{code}` is not in the selected languages"),
+        Some(code) => {
+            let code = code.to_ascii_lowercase();
+            if languages.contains(&code) {
+                Ok(code)
+            } else {
+                bail!("default language `{code}` is not in the selected languages")
+            }
+        }
         None if options.yes => Ok(languages[0].clone()),
         None => Ok(Select::new("Default language", languages.to_vec()).prompt()?),
     }
@@ -137,10 +171,11 @@ fn select_package_manager(default: &str) -> Result<String> {
 
 fn select_ui(options: &SetupOptions) -> Result<String> {
     if let Some(ui) = &options.ui {
+        let ui = ui.to_ascii_lowercase();
         if ui != UI_SHADCN && ui != UI_BASE {
             bail!("unknown UI `{ui}` (expected `shadcn` or `base-ui`)");
         }
-        return Ok(ui.clone());
+        return Ok(ui);
     }
     if options.yes {
         return Ok(UI_SHADCN.to_string());
@@ -160,10 +195,11 @@ fn select_ui(options: &SetupOptions) -> Result<String> {
 
 fn select_icons(options: &SetupOptions) -> Result<String> {
     if let Some(icons) = &options.icons {
+        let icons = icons.to_ascii_lowercase();
         if icons != ICONS_LUCIDE && icons != ICONS_NONE {
             bail!("unknown icon library `{icons}` (expected `lucide` or `none`)");
         }
-        return Ok(icons.clone());
+        return Ok(icons);
     }
     if options.yes {
         return Ok(ICONS_LUCIDE.to_string());

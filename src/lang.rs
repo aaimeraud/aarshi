@@ -9,6 +9,18 @@ use crate::{
     templates::{self, MESSAGES_MARKER},
 };
 
+/// Ask for a language code and keep asking until it is valid.
+fn prompt_language_code() -> Result<String> {
+    loop {
+        let code = Text::new("Language code (e.g. de)").prompt()?;
+        let code = code.trim().to_ascii_lowercase();
+        match config::validate_language(&code) {
+            Ok(()) => return Ok(code),
+            Err(error) => eprintln!("{error}"),
+        }
+    }
+}
+
 /// Adds a language to an existing project: dictionary, routes, layout and config.
 pub fn run(code: Option<String>) -> Result<()> {
     let root = env::current_dir()?;
@@ -17,8 +29,8 @@ pub fn run(code: Option<String>) -> Result<()> {
     }
     let config = Config::for_project(&root)?;
     let code = match code {
-        Some(code) => code,
-        None => Text::new("Language code (e.g. de)").prompt()?,
+        Some(code) => code.to_ascii_lowercase(),
+        None => prompt_language_code()?,
     };
     config::validate_language(&code)?;
     if config.languages.contains(&code) {

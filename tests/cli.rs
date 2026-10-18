@@ -59,15 +59,15 @@ impl Sandbox {
 
     /// `base-ui` keeps the tests offline: `shadcn` would need npx and the network.
     fn setup(&self, name: &str, extra: &[&str]) -> PathBuf {
-        let mut args = vec![
-            "setup",
-            name,
-            "--site-url",
-            "https://example.com/",
-            "--ui",
-            "base-ui",
-            "--yes",
-        ];
+        let has_ui = extra.contains(&"--ui");
+        let has_icons = extra.contains(&"--icons");
+        let mut args = vec!["setup", name, "--site-url", "https://example.com/", "--yes"];
+        if !has_ui {
+            args.extend(["--ui", "base-ui"]);
+        }
+        if !has_icons {
+            args.extend(["--icons", "lucide"]);
+        }
         args.extend_from_slice(extra);
         let output = self.run(&self.root, &args);
         assert!(output.status.success(), "{}", stderr(&output));
@@ -153,6 +153,37 @@ fn setup_defaults_to_npm_and_writes_project_config() {
     let config = read(&project.join("aarshi.toml"));
     assert!(config.contains("languages = [\"fr\", \"en\"]"), "{config}");
     assert!(config.contains("package_manager = \"npm\""), "{config}");
+}
+
+#[test]
+fn setup_lowercases_language_ui_and_icon_flags() {
+    let sandbox = Sandbox::new("setup-lowercase");
+    let output = sandbox.run(
+        &sandbox.root,
+        &[
+            "setup",
+            "site",
+            "--site-url",
+            "https://example.com/",
+            "--yes",
+            "--languages",
+            "FR,EN",
+            "--default-language",
+            "EN",
+            "--ui",
+            "BASE-UI",
+            "--icons",
+            "LUCIDE",
+        ],
+    );
+    assert!(output.status.success(), "{}", stderr(&output));
+
+    let project = sandbox.root.join("site");
+    let config = read(&project.join("aarshi.toml"));
+    assert!(config.contains("languages = [\"en\", \"fr\"]"), "{config}");
+    let log = read(&sandbox.log);
+    assert!(log.contains("@base-ui/react"), "{log}");
+    assert!(log.contains("lucide-react"), "{log}");
 }
 
 #[test]
@@ -318,6 +349,26 @@ fn add_component_refuses_to_overwrite() {
     let output = sandbox.add(&project, &["-c", "tag"]);
     assert!(!output.status.success());
     assert!(stderr(&output).contains("already exists"));
+}
+
+#[test]
+fn add_lowercases_page_section_and_component_names_from_flags() {
+    let sandbox = Sandbox::new("add-lowercase");
+    let project = sandbox.setup("site", &[]);
+
+    assert!(sandbox.add(&project, &["-p", "About"]).status.success());
+    assert!(project.join("views/about/about.view.tsx").exists());
+
+    assert!(
+        sandbox
+            .add(&project, &["-s", "Hero", "about"])
+            .status
+            .success()
+    );
+    assert!(project.join("views/about/sections/hero.tsx").exists());
+
+    assert!(sandbox.add(&project, &["-c", "TagButton"]).status.success());
+    assert!(project.join("components/custom/tagbutton.tsx").exists());
 }
 
 #[test]
