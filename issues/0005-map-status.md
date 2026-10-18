@@ -18,10 +18,13 @@ Une spec validée et implémentable de `aarshi status` : une commande de diagnos
 - Matière première : un inventaire des invariants du scaffolding a été dressé pendant la session de charting (relevés dans `src/check.rs`, `src/dictionary.rs`, `src/add.rs`, `src/templates.rs`, `src/setup.rs`, `src/config.rs`, `src/project.rs`) ; les candidats sont listés dans le corps des trois tickets « catalogue ».
 - **Directions fixées au charting** (elles cadrent les tickets) : `status` absorbe `check`, qui devient un alias ; rapport groupé par dimension ; deux gravités, `error` (conformité cassée) et `todo` (reste-à-faire attendu) ; v1 = présence + câblage, sémantique TS reportée ; attentes dérivées de `aarshi.toml` + découverte de l'état réel, pas de manifeste figé ; le travail manuel du dev est couvert ; lecture seule stricte ; sortie humaine + `--json`.
 - Préférences standing : sortie CLI en anglais (cohérente avec `error:` / `success:` / `info:`), issues en français ; aucune écriture dans le projet analysé.
+- Notes de recherche : dossier `research/` à la racine du dépôt (un fichier par ticket de recherche) ; chaque ticket `wayfinder:research` pointe vers son fichier.
 
 ## Decisions so far
 
 <!-- l'index : une ligne par ticket fermé, avec son gist et le lien vers le détail -->
+
+- [Recherche : comment les CLI conçoivent une commande de diagnostic (`doctor`/`status`)](0009-research-doctor-cli.md) : catégories nommées et stables ; gravité `error`/`warning` ; code de sortie binaire (non nul si et seulement s'il y a ≥ 1 `error`) + code dédié à l'erreur interne ; `--json` versionné à identifiants de règle stables ; SARIF hors v1.
 
 ## Not yet specified
 

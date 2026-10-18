@@ -20,6 +20,7 @@ Une fois le catalogue d'invariants fixé (tickets « catalogue »), quel est le 
 **Codes de sortie** :
 
 - Confirmer : non-zéro si et seulement s'il y a au moins une `error` ; des `todo` seuls → code 0. Quel code exact pour l'échec (1 ?) ?
+- Faut-il un code dédié à l'erreur interne/config (`aarshi.toml` illisible), distinct de l'échec de diagnostic (à la manière d'ESLint `2`) ?
 
 **Sortie machine `--json`** :
 
@@ -27,6 +28,8 @@ Une fois le catalogue d'invariants fixé (tickets « catalogue »), quel est le 
 - Stabilité : le schéma est-il un contrat public (à documenter et versionner) ou un détail interne ?
 - Interaction avec `print_header` (`AARSHI_NO_HEADER`), les couleurs et le TTY en mode `--json` (JSON strict sur stdout ?).
 - Impact dépendance : introduire `serde_json` dans `Cargo.toml`.
+
+S'appuie sur [Recherche : comment les CLI conçoivent une commande de diagnostic (`doctor`/`status`)](0009-research-doctor-cli.md) : code dédié à l'erreur interne (2 ?) ; `format_version` versionné ; identifiant de règle stable ; JSON strict sur stdout ; SARIF plutôt hors v1.
 
 ## Resolution
 

@@ -18,6 +18,8 @@ status: open
 
 Les flags liés au format (`--json`) et le détail du rendu appartiennent au ticket « Contrat de sortie ».
 
+S'appuie sur [Recherche : comment les CLI conçoivent une commande de diagnostic (`doctor`/`status`)](0009-research-doctor-cli.md) : catégories nommées et ciblables par argument nommé (comme `brew doctor <check>`).
+
 ## Resolution
 
 <!-- à remplir à la résolution -->

@@ -2,7 +2,7 @@
 labels: [wayfinder:research]
 parent: 0005-map-status.md
 blocked-by: []
-status: open
+status: closed
 ---
 
 # Recherche : comment les CLI conçoivent une commande de diagnostic (`doctor`/`status`)
@@ -21,4 +21,16 @@ Cette recherche éclaire la surface de la commande (ticket « Surface de `status
 
 ## Resolution
 
-<!-- à remplir à la résolution : synthèse + lien vers le fichier de recherche sur la branche research/… -->
+**Réponse** — fichier de recherche : `research/doctor-cli-conventions.md`, sur la branche jetable `research/doctor-cli-conventions` (jamais fusionnée, **aucune PR** ; poussée sur `origin`). Chaque affirmation y est citée à sa source primaire (docs et code de `npm doctor`, ESLint, `terraform validate`, `brew doctor`, Flutter, `rustup`, GitHub CLI, ShellCheck, Prisma, Cargo ; schéma OASIS SARIF 2.1.0).
+
+Synthèse retenue :
+
+- **Catégories nommées et stables** (à l'image des `groups` de `npm doctor` et des checks énumérables de `brew doctor`) : présence des fichiers attendus, câblage croisé, config `aarshi.toml`, dictionnaires i18n, routes `app/[locale]/`.
+- **Gravité** : `error` / `warning` est la convention dominante ; deux niveaux suffisent pour `aarshi status` (`error`, `todo`).
+- **Code de sortie** : binaire, **pas** proportionnel au nombre de problèmes ; non nul si et seulement s'il y a au moins une `error`. Réserver un **code dédié à l'erreur interne/config** (à la manière d'ESLint `2` et ShellCheck `2`), distinct de `1` (diagnostic en erreur) et `0` (succès).
+- **Sortie machine** : `--json` maison avec **schéma versionné** (`format_version`, mineur rétrocompatible) et diagnostics structurés `{ id/ruleId, severity, summary, detail, location }`, plus des compteurs — forme de `terraform validate -json` et du formatter `json` d'ESLint. **SARIF n'est pas requis en v1** (aucun outil comparable cité ne l'embarque par défaut).
+- **JSON strict sur stdout** en mode `--json` ; le mode humain seul imprime l'en-tête décoré (`AARSHI_NO_HEADER`).
+- **Identifiant de règle stable** par constat (`missing-dictionary`, `unwired-section`, …) pour les filtres, la déduplication et la stabilité des tests.
+- **Piège à éviter** (cf. `gh auth status`) : un JSON valide avec un code `0` alors que des `error` existent.
+
+Éclaire les tickets « Surface de `status` et absorption de `check` » et « Contrat de sortie : rendu humain, `--json`, codes de sortie ».
