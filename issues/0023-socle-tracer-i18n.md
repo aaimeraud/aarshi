@@ -2,7 +2,7 @@
 labels: [wayfinder:implement]
 parent: 0014-map-implementation-status.md
 blocked-by: []
-status: open
+status: closed
 ---
 
 # Socle et tracer : surface `status`, moteur, sortie, dimension i18n partielle
@@ -23,8 +23,8 @@ Cette tranche **clôt les grillings [0016](0016-grilling-moteur-status.md), [001
 
 ## Critères d'acceptance
 
-- [ ] Sur une fixture, le rapport humain reproduit la forme de l'exemple de rendu de 0011 (dimensions toujours listées, `✓`, constats indentés, verdict, ligne d'info sous filtre), ET/FR non concerné.
-- [ ] `aarshi status` et `aarshi check` produisent la même sortie, le même code ; `status` est en dernier dans l'aide et `check` apparaît comme alias ; une valeur `--dimension` inconnue est une erreur d'usage (code 2).
-- [ ] Codes de sortie vérifiés par tests : propre → `0`, `todo` seuls → `0`, ≥ 1 `error` → `1`, hors projet → `2` avec rien sur stdout.
-- [ ] `--json` comparé champ par champ sur une fixture (schéma de 0011 exact, options omises) ; le schema reste strict sur stdout en cas d'arrêt (code 2).
-- [ ] La résolution de 0016 documente le modèle retenu (emplacements des types et des 36 identifiants), celle de 0017 les conventions de wording, celle de 0018 le plumbing des codes.
+- [x] Sur une fixture, le rapport humain reproduit la forme de l'exemple de rendu de 0011 (dimensions toujours listées, `✓`, constats indentés, verdict, ligne d'info sous filtre), ET/FR non concerné.
+- [x] `aarshi status` et `aarshi check` produisent la même sortie, le même code ; `status` est en dernier dans l'aide et `check` apparaît comme alias ; une valeur `--dimension` inconnue est une erreur d'usage (code 2).
+- [x] Codes de sortie vérifiés par tests : propre → `0`, `todo` seuls → `0`, ≥ 1 `error` → `1`, hors projet → `2` avec rien sur stdout.
+- [x] `--json` comparé champ par champ sur une fixture (schéma de 0011 exact, options omises) ; le schema reste strict sur stdout en cas d'arrêt (code 2).
+- [x] La résolution de 0016 documente le modèle retenu (emplacements des types et des 36 identifiants), celle de 0017 les conventions de wording, celle de 0018 le plumbing des codes.
