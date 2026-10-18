@@ -3,6 +3,7 @@ labels: [wayfinder:grilling]
 parent: 0005-map-status.md
 blocked-by: [0010-grilling-surface-status.md, 0011-grilling-contrat-sortie.md]
 status: open
+assignee: aaimeraud
 ---
 
 # Livraison et emplacement de la spec de `status`
