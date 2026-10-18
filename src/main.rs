@@ -4,6 +4,7 @@ mod config;
 mod dictionary;
 mod icons;
 mod lang;
+mod output;
 mod project;
 mod setup;
 mod templates;
@@ -11,7 +12,7 @@ mod templates;
 use anyhow::Result;
 use clap::{ArgGroup, Args, Parser, Subcommand};
 
-/// Scaffold multilingual Next.js sites.
+/// Scaffold Next.js sites.
 #[derive(Parser)]
 #[command(name = "aarshi", version)]
 struct Cli {
@@ -112,8 +113,16 @@ struct AddArgs {
     page: Option<String>,
 }
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(error) = run() {
+        eprintln!("{}", output::error(&format!("{error:#}")));
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<()> {
     let cli = Cli::parse();
+    output::print_header();
     match cli.command {
         Command::Setup(args) => setup::run(setup::SetupOptions {
             package_manager: package_manager(&args),

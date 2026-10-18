@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use inquire::MultiSelect;
 use roxmltree::{Document, Node};
 
-use crate::{config, project};
+use crate::{config, output, project};
 
 const ICONS_DIR: &str = "components/icons";
 
@@ -27,7 +27,7 @@ pub fn run(all: bool) -> Result<()> {
         MultiSelect::new("Icons to convert", svgs).prompt()?
     };
     if selected.is_empty() {
-        println!("Nothing selected.");
+        println!("{}", output::info("Nothing selected."));
         return Ok(());
     }
 
@@ -36,8 +36,11 @@ pub fn run(all: bool) -> Result<()> {
         let target = dir.join(format!("{name}.tsx"));
         project::create_file(&target, &convert(&source, name)?)?;
         println!(
-            "Wrote {}",
-            target.strip_prefix(&root).unwrap_or(&target).display()
+            "{}",
+            output::success(&format!(
+                "wrote {}",
+                target.strip_prefix(&root).unwrap_or(&target).display()
+            ))
         );
     }
     Ok(())

@@ -8,7 +8,7 @@ use inquire::{Confirm, Select, Text};
 
 use crate::{
     config::{self, Config},
-    dictionary,
+    dictionary, output,
     project::{self, to_pascal_case, validate_name},
     templates::{self, IMPORTS_MARKER, MESSAGES_MARKER, PAGES_MARKER, SECTIONS_MARKER},
 };
@@ -41,7 +41,12 @@ pub fn run(options: AddOptions) -> Result<()> {
         };
         validate_name("section", &section)?;
         let page = ask_target_page(&root, languages, options.page)?;
-        return add_section(&root, languages, &page, &section);
+        add_section(&root, languages, &page, &section)?;
+        println!(
+            "{}",
+            output::success(&format!("section `{section}` added to page `{page}`"))
+        );
+        return Ok(());
     }
     if let Some(component) = options.component {
         let component = if component.is_empty() {
@@ -50,11 +55,18 @@ pub fn run(options: AddOptions) -> Result<()> {
             component.to_ascii_lowercase()
         };
         validate_name("component", &component)?;
-        return create_custom_component(&root, &component);
+        create_custom_component(&root, &component)?;
+        println!(
+            "{}",
+            output::success(&format!("custom component `{component}` created"))
+        );
+        return Ok(());
     }
     if options.page_only {
         let page = ask_new_page(options.page)?;
-        return create_page(&root, languages, &page);
+        create_page(&root, languages, &page)?;
+        println!("{}", output::success(&format!("page `{page}` created")));
+        return Ok(());
     }
     if options.page.is_some() {
         bail!(
@@ -70,15 +82,27 @@ pub fn run(options: AddOptions) -> Result<()> {
         "Section" => {
             let section = prompt_name("section")?;
             let page = ask_target_page(&root, languages, None)?;
-            add_section(&root, languages, &page, &section)
+            add_section(&root, languages, &page, &section)?;
+            println!(
+                "{}",
+                output::success(&format!("section `{section}` added to page `{page}`"))
+            );
+            Ok(())
         }
         "Page" => {
             let page = ask_new_page(None)?;
-            create_page(&root, languages, &page)
+            create_page(&root, languages, &page)?;
+            println!("{}", output::success(&format!("page `{page}` created")));
+            Ok(())
         }
         _ => {
             let component = prompt_name("component")?;
-            create_custom_component(&root, &component)
+            create_custom_component(&root, &component)?;
+            println!(
+                "{}",
+                output::success(&format!("custom component `{component}` created"))
+            );
+            Ok(())
         }
     }
 }
@@ -118,7 +142,7 @@ fn prompt_name(kind: &str) -> Result<String> {
         let value = value.trim().to_ascii_lowercase();
         match validate_name(kind, &value) {
             Ok(()) => return Ok(value),
-            Err(error) => eprintln!("{error}"),
+            Err(error) => eprintln!("{}", output::warning(&error.to_string())),
         }
     }
 }
@@ -164,7 +188,10 @@ pub fn write_page(root: &Path, languages: &[String], page: &str) -> Result<()> {
 
 pub fn add_section(root: &Path, languages: &[String], page: &str, section: &str) -> Result<()> {
     if !view_file(root, page).exists() {
-        eprintln!("error: page `{page}` does not exist");
+        eprintln!(
+            "{}",
+            output::warning(&format!("page `{page}` does not exist"))
+        );
         let create = Confirm::new(&format!("Create page `{page}`?"))
             .with_default(false)
             .prompt()?;

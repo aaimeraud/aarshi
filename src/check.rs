@@ -5,7 +5,7 @@ use anyhow::{Result, bail};
 use crate::{
     add,
     config::{self, Config},
-    dictionary, project,
+    dictionary, output, project,
 };
 
 /// Reports empty translations, missing keys, missing routes and config drift. Changes nothing.
@@ -59,11 +59,11 @@ pub fn run() -> Result<()> {
     }
 
     if problems.is_empty() {
-        println!("All translations are filled.");
+        println!("{}", output::success("All translations are filled."));
         return Ok(());
     }
     for problem in &problems {
-        println!("- {problem}");
+        println!("{}", output::error(problem));
     }
     bail!("{} problem(s) found", problems.len())
 }

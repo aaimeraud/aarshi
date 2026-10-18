@@ -53,6 +53,7 @@ impl Sandbox {
             .env("PATH", path)
             .env("HOME", &self.home)
             .env("AARSHI_TEST_LOG", &self.log)
+            .env("AARSHI_NO_HEADER", "1")
             .output()
             .unwrap()
     }

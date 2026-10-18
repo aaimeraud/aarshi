@@ -10,7 +10,7 @@ use inquire::{MultiSelect, Select, Text};
 use crate::{
     add,
     config::{self, Config, PACKAGE_MANAGERS, PROJECT_CONFIG_FILE, SUPPORTED_LANGUAGES},
-    project, templates,
+    output, project, templates,
 };
 
 const DEFAULT_SITE_URL: &str = "http://localhost:3000";
@@ -50,7 +50,7 @@ pub fn run(options: SetupOptions) -> Result<()> {
                 if options.dir.is_some() || options.yes {
                     return Err(error);
                 }
-                eprintln!("{error}");
+                eprintln!("{}", output::warning(&error.to_string()));
                 dir = Text::new("Project folder name").prompt()?;
             }
         }
@@ -74,7 +74,7 @@ pub fn run(options: SetupOptions) -> Result<()> {
                 if options.site_url.is_some() || options.yes {
                     return Err(error);
                 }
-                eprintln!("{error}");
+                eprintln!("{}", output::warning(&error.to_string()));
                 site_url_input = Text::new("Site URL")
                     .with_default(DEFAULT_SITE_URL)
                     .prompt()?;
@@ -102,7 +102,9 @@ pub fn run(options: SetupOptions) -> Result<()> {
         languages,
         package_manager: manager,
     };
-    generate(&root, &config, &site_url, cache_components)
+    generate(&root, &config, &site_url, cache_components)?;
+    println!("{}", output::success(&format!("project `{dir}` created")));
+    Ok(())
 }
 
 /// The offered languages, preselected with the user config when it has some.
@@ -132,7 +134,7 @@ fn select_languages(options: &SetupOptions, user: &Config) -> Result<Vec<String>
         if !selected.is_empty() {
             break selected;
         }
-        eprintln!("error: select at least one language");
+        eprintln!("{}", output::warning("select at least one language"));
     };
     let languages: Vec<String> = choices
         .into_iter()

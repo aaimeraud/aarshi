@@ -5,7 +5,7 @@ use inquire::Text;
 
 use crate::{
     config::{self, Config, PROJECT_CONFIG_FILE},
-    dictionary, project,
+    dictionary, output, project,
     templates::{self, MESSAGES_MARKER},
 };
 
@@ -16,7 +16,7 @@ fn prompt_language_code() -> Result<String> {
         let code = code.trim().to_ascii_lowercase();
         match config::validate_language(&code) {
             Ok(()) => return Ok(code),
-            Err(error) => eprintln!("{error}"),
+            Err(error) => eprintln!("{}", output::warning(&error.to_string())),
         }
     }
 }
@@ -72,8 +72,12 @@ pub fn run(code: Option<String>) -> Result<()> {
         project_config.to_project_file(),
     )?;
 
+    println!("{}", output::success(&format!("language `{code}` added")));
     println!(
-        "Added `{code}`. Fill the empty values in lib/i18n/dictionaries/{code}.ts, then run `aarshi check`."
+        "{}",
+        output::info(&format!(
+            "fill the empty values in lib/i18n/dictionaries/{code}.ts, then run `aarshi check`"
+        ))
     );
     Ok(())
 }
