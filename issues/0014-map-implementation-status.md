@@ -1,6 +1,6 @@
 ---
 labels: [wayfinder:map]
-status: open
+status: closed
 parent: 0005-map-status.md
 ---
 
