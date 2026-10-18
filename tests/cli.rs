@@ -1462,3 +1462,429 @@ fn status_sorts_a_mixed_i18n_dictionary_file_by_file_then_rule() {
          error: 1 error, 3 to do\n"
     );
 }
+
+// ==== `status` (pages dimension) ==========================================
+
+/// The PascalCase name of a page, the same rule the generator applies.
+fn pascal(name: &str) -> String {
+    name.split('-')
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => first.to_ascii_uppercase().to_string() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect()
+}
+
+/// Writes `views/<page>/<page>.view.tsx`.
+fn write_view(root: &Path, page: &str, content: &str) {
+    let file = root
+        .join("views")
+        .join(page)
+        .join(format!("{page}.view.tsx"));
+    fs::create_dir_all(file.parent().unwrap()).unwrap();
+    fs::write(file, content).unwrap();
+}
+
+/// Writes `app/[locale]<path>/page.tsx`; `home` covers the root page.
+fn write_route(root: &Path, page: &str, content: &str) {
+    let dir = if page == "home" {
+        root.join("app/[locale]")
+    } else {
+        root.join("app/[locale]").join(page)
+    };
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("page.tsx"), content).unwrap();
+}
+
+/// The minimal view and route aarshi writes for a page: the route imports
+/// the view through the alias, the view imports nothing.
+fn write_generated_page(root: &Path, page: &str) {
+    let component = pascal(page);
+    write_view(
+        root,
+        page,
+        &format!("const {component}View = () => null;\n\nexport default {component}View;\n"),
+    );
+    write_route(
+        root,
+        page,
+        &format!(
+            "import {component}View from \"@/views/{page}/{page}.view\";\n\nexport default {component}View;\n"
+        ),
+    );
+}
+
+/// Replaces the registered entries of `app/sitemap.ts`; the hardcoded `/` is
+/// part of the list, as written by the template.
+fn write_sitemap(root: &Path, entries: &[&str]) {
+    let listed = entries
+        .iter()
+        .map(|entry| format!("  \"{entry}\","))
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(
+        root.join("app/sitemap.ts"),
+        format!("const pages = [\n{listed}\n  // aarshi:pages:end\n];\n"),
+    )
+    .unwrap();
+}
+
+/// The findings of the `pages` dimension of a `status --json` run.
+fn pages_findings(output: &Output) -> Vec<serde_json::Value> {
+    let document: serde_json::Value = serde_json::from_str(&stdout(output)).unwrap();
+    document["dimensions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|dimension| dimension["id"].as_str().unwrap() == "pages")
+        .map(|dimension| dimension["findings"].as_array().unwrap().clone())
+        .unwrap()
+}
+
+/// A project shaped like the generated one, kept minimal: home view, its
+/// route, the sitemap and dictionaries carrying nothing but `home.title`.
+fn pages_project(name: &str) -> PathBuf {
+    let root = i18n_project(name);
+    fs::create_dir_all(root.join("app/[locale]")).unwrap();
+    write_sitemap(&root, &["/"]);
+    write_generated_page(&root, "home");
+    root
+}
+
+fn complete_about_page(project: &Path, page: &str) {
+    write_generated_page(project, page);
+    write_sitemap(project, &["/", "/about"]);
+    write_dictionary(
+        project,
+        "fr",
+        &[("home.title", "Accueil"), ("about.title", "À propos")],
+    );
+    write_dictionary(
+        project,
+        "en",
+        &[("home.title", "Home"), ("about.title", "About")],
+    );
+}
+
+#[test]
+fn status_reports_a_view_without_its_route() {
+    let sandbox = Sandbox::new("pages-route-missing");
+    let project = pages_project("pages-route-missing");
+    write_view(
+        &project,
+        "about",
+        "const AboutView = () => null;\n\nexport default AboutView;\n",
+    );
+    write_dictionary(
+        &project,
+        "fr",
+        &[("home.title", "Accueil"), ("about.title", "À propos")],
+    );
+    write_dictionary(
+        &project,
+        "en",
+        &[("home.title", "Home"), ("about.title", "About")],
+    );
+    write_sitemap(&project, &["/", "/about"]);
+
+    let human = sandbox.run(&project, &["status"]);
+    assert_eq!(human.status.code(), Some(1));
+    let report = stdout(&human);
+    assert!(
+        report.contains("pages\n  error: no route for the page `about`\n"),
+        "{report}"
+    );
+    // An existing view never books an orphan: only the missing route fires.
+    assert!(!report.contains("no view for"), "{report}");
+
+    let json = sandbox.run(&project, &["status", "--json"]);
+    let findings = pages_findings(&json);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(finding["rule"].as_str().unwrap(), "pages.route-missing");
+    assert_eq!(finding["severity"].as_str().unwrap(), "error");
+    assert_eq!(
+        finding["detail"].as_str().unwrap(),
+        "expected app/[locale]/about/page.tsx"
+    );
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "app/[locale]/about/page.tsx"
+    );
+}
+
+#[test]
+fn status_reports_a_hand_added_route_without_a_view() {
+    let sandbox = Sandbox::new("pages-route-orphan");
+    let project = pages_project("pages-route-orphan");
+    write_route(
+        &project,
+        "contact",
+        "import ContactView from \"@/views/contact/contact.view\";\n\nexport default ContactView;\n",
+    );
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let findings = pages_findings(&output);
+    // One finding only: the view import a hand-added route waits for is
+    // covered by `pages.route-orphan`, never repeated as a broken import.
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(finding["rule"].as_str().unwrap(), "pages.route-orphan");
+    assert_eq!(finding["severity"].as_str().unwrap(), "error");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "no view for the route `/contact`"
+    );
+    assert_eq!(
+        finding["detail"].as_str().unwrap(),
+        "expected views/contact/contact.view.tsx"
+    );
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "app/[locale]/contact/page.tsx"
+    );
+}
+
+#[test]
+fn status_reports_a_title_key_missing_from_a_dictionary() {
+    let sandbox = Sandbox::new("pages-title-key");
+    let project = pages_project("pages-title-key");
+    // The full page is in place; only its `<page>.title` key stays unknown.
+    write_generated_page(&project, "about");
+    write_sitemap(&project, &["/", "/about"]);
+
+    let human = sandbox.run(&project, &["status"]);
+    assert_eq!(human.status.code(), Some(1));
+    let report = stdout(&human);
+    assert!(
+        report.contains("error: `about.title` is missing from the dictionary of `fr`\n"),
+        "{report}"
+    );
+    assert!(
+        report.contains("error: `about.title` is missing from the dictionary of `en`\n"),
+        "{report}"
+    );
+
+    let json = sandbox.run(&project, &["status", "--json"]);
+    let findings = pages_findings(&json);
+    assert_eq!(findings.len(), 2);
+    // Sorted by dictionary file: `en` before `fr`.
+    for (finding, locale, title) in [
+        (&findings[0], "en", "Home"),
+        (&findings[1], "fr", "À propos"),
+    ] {
+        assert_eq!(finding["rule"].as_str().unwrap(), "pages.title-key-missing");
+        assert_eq!(finding["severity"].as_str().unwrap(), "error");
+        assert!(
+            finding["summary"]
+                .as_str()
+                .unwrap()
+                .starts_with("`about.title` is missing from the dictionary of `"),
+            "{finding:?}"
+        );
+        assert_eq!(
+            finding["location"]["file"].as_str().unwrap(),
+            format!("lib/i18n/dictionaries/{locale}.ts")
+        );
+        assert_eq!(finding["location"]["locale"].as_str().unwrap(), locale);
+        assert_eq!(finding["location"]["key"].as_str().unwrap(), "about.title");
+        let _ = title;
+    }
+}
+
+#[test]
+fn status_reports_a_missing_sitemap_entry() {
+    let sandbox = Sandbox::new("pages-sitemap-missing");
+    let project = pages_project("pages-sitemap-missing");
+    complete_about_page(&project, "about");
+    // `/about` was created but never registered in the sitemap.
+    write_sitemap(&project, &["/"]);
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let findings = pages_findings(&output);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(
+        finding["rule"].as_str().unwrap(),
+        "pages.sitemap-entry-missing"
+    );
+    assert_eq!(finding["severity"].as_str().unwrap(), "error");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "no sitemap entry for `/about`"
+    );
+    assert_eq!(finding["detail"].as_str().unwrap(), "expected \"/about\",");
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "app/sitemap.ts"
+    );
+    assert_eq!(finding["location"]["key"].as_str().unwrap(), "/about");
+}
+
+#[test]
+fn status_reports_an_orphan_sitemap_entry() {
+    let sandbox = Sandbox::new("pages-sitemap-orphan");
+    let project = pages_project("pages-sitemap-orphan");
+    write_sitemap(&project, &["/", "/contact"]);
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let findings = pages_findings(&output);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(
+        finding["rule"].as_str().unwrap(),
+        "pages.sitemap-entry-orphan"
+    );
+    assert_eq!(finding["severity"].as_str().unwrap(), "error");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "sitemap entry `/contact` has no page"
+    );
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "app/sitemap.ts"
+    );
+    assert_eq!(finding["location"]["key"].as_str().unwrap(), "/contact");
+}
+
+#[test]
+fn status_reports_a_missing_view_import() {
+    let sandbox = Sandbox::new("pages-view-import");
+    let project = pages_project("pages-view-import");
+    complete_about_page(&project, "about");
+    // The route stopped importing its view.
+    write_route(&project, "about", "export default null;\n");
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let findings = pages_findings(&output);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(
+        finding["rule"].as_str().unwrap(),
+        "pages.view-import-missing"
+    );
+    assert_eq!(finding["severity"].as_str().unwrap(), "error");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "`/about` does not import its view"
+    );
+    assert_eq!(
+        finding["detail"].as_str().unwrap(),
+        "expected @/views/about/about.view"
+    );
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "app/[locale]/about/page.tsx"
+    );
+}
+
+#[test]
+fn status_reports_a_broken_import_in_a_view() {
+    let sandbox = Sandbox::new("pages-import-broken");
+    let project = pages_project("pages-import-broken");
+    // One unresolvable component import and one dangling section import next
+    // to a well-placed canonical route import.
+    write_view(
+        &project,
+        "about",
+        "import { Tag } from \"@/components/custom/tag\";\n\nimport { Hero } from \"./sections/hero\";\n\nconst AboutView = () => null;\n\nexport default AboutView;\n",
+    );
+    write_route(
+        &project,
+        "about",
+        "import AboutView from \"@/views/about/about.view\";\n\nexport default AboutView;\n",
+    );
+    write_dictionary(
+        &project,
+        "fr",
+        &[("home.title", "Accueil"), ("about.title", "À propos")],
+    );
+    write_dictionary(
+        &project,
+        "en",
+        &[("home.title", "Home"), ("about.title", "About")],
+    );
+    write_sitemap(&project, &["/", "/about"]);
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let findings = pages_findings(&output);
+    // The dangling `./sections/hero` import belongs to the `sections`
+    // dimension (ticket 0027) and stays silent here.
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(finding["rule"].as_str().unwrap(), "pages.import-broken");
+    assert_eq!(finding["severity"].as_str().unwrap(), "error");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "broken import `@/components/custom/tag` in `views/about/about.view.tsx`"
+    );
+    assert_eq!(
+        finding["detail"].as_str().unwrap(),
+        "no file matches `@/components/custom/tag`"
+    );
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "views/about/about.view.tsx"
+    );
+}
+
+#[test]
+fn status_scans_routes_recursively_under_the_locale_folder() {
+    let sandbox = Sandbox::new("pages-recursive");
+    let project = pages_project("pages-recursive");
+    // A hand-added nested route, several segments deep.
+    write_route(&project, "docs/guide", "export default null;\n");
+
+    let human = sandbox.run(&project, &["status"]);
+    assert_eq!(human.status.code(), Some(1));
+    let report = stdout(&human);
+    assert!(
+        report.contains("error: no view for the route `/docs/guide`\n"),
+        "{report}"
+    );
+    assert!(report.contains("error: 1 error"), "{report}");
+
+    let json = sandbox.run(&project, &["status", "--json"]);
+    let findings = pages_findings(&json);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "app/[locale]/docs/guide/page.tsx"
+    );
+    // A nested route has no conventional view to offer as a fix.
+    assert!(finding.get("detail").is_none(), "{finding:?}");
+}
+
+#[test]
+fn status_reports_no_pages_finding_without_views_or_routes() {
+    // Transverse rule: a project without any `views/` folder (any route
+    // either) yields findings without ever crashing.
+    let sandbox = Sandbox::new("pages-empty");
+    let project = i18n_project("pages-empty");
+
+    let human = sandbox.run(&project, &["status"]);
+    assert_eq!(human.status.code(), Some(0));
+    let report = stdout(&human);
+    assert!(report.contains("pages ✓"), "{report}");
+
+    let json = sandbox.run(&project, &["status", "--json"]);
+    let document: serde_json::Value = serde_json::from_str(&stdout(&json)).unwrap();
+    let pages = document["dimensions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|dimension| dimension["id"].as_str().unwrap() == "pages")
+        .unwrap();
+    assert_eq!(pages["errors"], 0, "{}", stdout(&json));
+    assert_eq!(pages["todos"], 0);
+    assert!(pages["findings"].as_array().unwrap().is_empty());
+}

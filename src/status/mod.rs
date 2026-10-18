@@ -1,4 +1,5 @@
 mod i18n;
+mod pages;
 mod render;
 
 use std::{env, fmt, str::FromStr};
@@ -195,7 +196,8 @@ type Collector = fn(&std::path::Path, &Config, &mut Vec<Finding>);
 const COLLECTORS: &[Collector] = &[
     // `config` arrives with its own dimension ticket.
     i18n::collect,
-    // `pages`, `sections`, `components` and `dependencies` likewise.
+    pages::collect,
+    // `sections`, `components` and `dependencies` likewise.
 ];
 
 /// Runs the report. Returns `Ok` with exit code `0` (nothing broken), or

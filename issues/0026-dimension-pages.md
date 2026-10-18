@@ -2,7 +2,7 @@
 labels: [wayfinder:implement]
 parent: 0014-map-implementation-status.md
 blocked-by: [0023-socle-tracer-i18n.md]
-status: open
+status: closed
 ---
 
 # Dimension `pages` : vues ↔ routes, sitemap, import de vue — et primitives partagées
@@ -15,7 +15,7 @@ Cette tranche pose aussi les **primitives de lecture partagées** que les dimens
 
 ## Critères d'acceptance
 
-- [ ] Chaque règle a au moins un test noir (constat déclenché sur fixture, `rule`, gravité, message).
-- [ ] Vue ↔ route fonctionne dans les deux sens : vue sans route et route orpheline (fichier ajouté à la main) détectées.
-- [ ] Les primitives sont réutilisables par les autres dimensions (extraction d'imports, sitemap, inventaire) et documentées dans la résolution du moteur.
-- [ ] Un projet sans aucun dossier `views/` produit des constats sans jamais planter (règle transverse).
+- [x] Chaque règle a au moins un test noir (constat déclenché sur fixture, `rule`, gravité, message).
+- [x] Vue ↔ route fonctionne dans les deux sens : vue sans route et route orpheline (fichier ajouté à la main) détectées.
+- [x] Les primitives sont réutilisables par les autres dimensions (extraction d'imports, sitemap, inventaire) et documentées dans la résolution du moteur.
+- [x] Un projet sans aucun dossier `views/` produit des constats sans jamais planter (règle transverse).
