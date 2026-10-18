@@ -2765,6 +2765,317 @@ fn status_reports_a_broken_import_in_a_section() {
         "views/about/sections/hero.tsx"
     );
 }
+
+// ==== `status` (components dimension) ======================================
+
+/// The findings of the `components` dimension of a `status --json` run.
+fn components_findings(output: &Output) -> Vec<serde_json::Value> {
+    let document: serde_json::Value = serde_json::from_str(&stdout(output)).unwrap();
+    document["dimensions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|dimension| dimension["id"].as_str().unwrap() == "components")
+        .map(|dimension| dimension["findings"].as_array().unwrap().clone())
+        .unwrap()
+}
+
+// The dimension of the whole `--json` document, by canonical id, is read by
+// the shared `fn dimension_of` helper the `dependencies` block defines.
+
+#[test]
+fn components_report_unconverted_icons() {
+    let sandbox = Sandbox::new("components-icons-unconverted");
+    let project = i18n_project("components-icons-unconverted");
+    // A converted pair and a bare `.tsx` stay silent; only the `.svg` of a
+    // conversion not yet done fires.
+    write_project_file(&project, "components/icons/arrow.svg", "<svg></svg>\n");
+    write_project_file(
+        &project,
+        "components/icons/arrow.tsx",
+        "export const ArrowIcon = () => null;\n",
+    );
+    write_project_file(
+        &project,
+        "components/icons/star.tsx",
+        "export const StarIcon = () => null;\n",
+    );
+    write_project_file(&project, "components/icons/logo.svg", "<svg></svg>\n");
+
+    let human = sandbox.run(&project, &["status"]);
+    assert_eq!(human.status.code(), Some(0));
+    let report = stdout(&human);
+    assert!(
+        report.contains(
+            "components\n  todo: `components/icons/logo.svg` has no generated component\n"
+        ),
+        "{report}"
+    );
+    assert!(
+        report.contains("✓ project is conformant (1 to do)"),
+        "{report}"
+    );
+
+    let json = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(json.status.code(), Some(0));
+    let findings = components_findings(&json);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(
+        finding["rule"].as_str().unwrap(),
+        "components.icon-unconverted"
+    );
+    assert_eq!(finding["severity"].as_str().unwrap(), "todo");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "`components/icons/logo.svg` has no generated component"
+    );
+    assert_eq!(
+        finding["detail"].as_str().unwrap(),
+        "expected components/icons/logo.tsx"
+    );
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "components/icons/logo.svg"
+    );
+}
+
+#[test]
+fn components_ignore_a_tsx_without_svg() {
+    // The SVG may have been removed after the conversion: a `.tsx` alone is
+    // not an invariant and never yields a finding.
+    let sandbox = Sandbox::new("components-icons-converted-only");
+    let project = i18n_project("components-icons-converted-only");
+    write_project_file(
+        &project,
+        "components/icons/logo.tsx",
+        "import { Circle } from \"lucide-react\";\n\nexport const LogoIcon = () => null;\n",
+    );
+
+    let human = sandbox.run(&project, &["status"]);
+    assert_eq!(human.status.code(), Some(0));
+    let report = stdout(&human);
+    assert!(report.contains("components ✓"), "{report}");
+    assert!(report.contains("✓ project is conformant"), "{report}");
+
+    let json = sandbox.run(&project, &["status", "--json"]);
+    assert!(components_findings(&json).is_empty());
+}
+
+#[test]
+fn components_report_a_broken_import_in_a_custom_component() {
+    let sandbox = Sandbox::new("components-import-broken");
+    let project = i18n_project("components-import-broken");
+    // The resolvable `ui` import sits next to two unresolvable ones, one
+    // through the alias and one relative to the importer.
+    write_project_file(
+        &project,
+        "components/custom/badge.tsx",
+        "import { Button } from \"@/components/ui/button\";\nimport { ghost } from \"@/components/custom/ghost\";\nimport { sibling } from \"./sibling\";\n\nexport const Badge = () => null;\n",
+    );
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let findings = components_findings(&output);
+    assert_eq!(findings.len(), 2);
+    for (finding, module) in [
+        (&findings[0], "@/components/custom/ghost"),
+        (&findings[1], "./sibling"),
+    ] {
+        assert_eq!(
+            finding["rule"].as_str().unwrap(),
+            "components.import-broken"
+        );
+        assert_eq!(finding["severity"].as_str().unwrap(), "error");
+        assert_eq!(
+            finding["summary"].as_str().unwrap(),
+            format!("broken import `{module}` in `components/custom/badge.tsx`")
+        );
+        assert_eq!(
+            finding["detail"].as_str().unwrap(),
+            format!("no file matches `{module}`")
+        );
+        assert_eq!(
+            finding["location"]["file"].as_str().unwrap(),
+            "components/custom/badge.tsx"
+        );
+    }
+
+    let human = sandbox.run(&project, &["status"]);
+    let report = stdout(&human);
+    assert!(
+        report.contains(
+            "components\n  error: broken import `@/components/custom/ghost` in `components/custom/badge.tsx`\n  error: broken import `./sibling` in `components/custom/badge.tsx`\n"
+        ),
+        "{report}"
+    );
+    assert!(report.contains("error: 2 errors, 0 to do"), "{report}");
+}
+
+#[test]
+fn components_leave_the_broken_imports_of_known_files_to_their_dimensions() {
+    // The resolution of the known-file imports is classified in the
+    // dimension of the faulty object: view/route imports in `pages`, the
+    // section import in `sections`, the base-file one in `config` (0024's
+    // walk). The `components` dimension reports none of them twice.
+    let sandbox = Sandbox::new("components-known-files");
+    let project = sections_project("components-known-files");
+    // Layout (a base file) imports a missing local module.
+    write_project_file(
+        &project,
+        "app/[locale]/layout.tsx",
+        "import LanguageSwitcher from \"@/components/language-switcher\";\nimport { helper } from \"@/lib/nope\";\n",
+    );
+    // The route and its view point at components that do not exist.
+    write_route(
+        &project,
+        "about",
+        "import AboutView from \"@/views/about/about.view\";\nimport { Ghost } from \"@/components/custom/ghost\";\n\nexport default AboutView;\n",
+    );
+    let view = read_view_text(&project, "about");
+    write_view(
+        &project,
+        "about",
+        &format!("import {{ Tag }} from \"@/components/custom/tag\";\n{view}"),
+    );
+    // The hero section points at a missing icon-component-like import.
+    let hero = read_section_text(&project, "about", "hero");
+    write_section(
+        &project,
+        "about",
+        "hero",
+        &format!("import {{ Star }} from \"@/components/custom/star\";\n{hero}"),
+    );
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+
+    let components = dimension_of(&output, "components");
+    assert_eq!(components["errors"], 0, "{}", stdout(&output));
+    assert_eq!(components["todos"], 0);
+    assert!(components["findings"].as_array().unwrap().is_empty());
+
+    let pages = dimension_of(&output, "pages");
+    assert_eq!(pages["errors"], 2, "{}", stdout(&output));
+    let pages_findings = pages["findings"].as_array().unwrap();
+    assert!(
+        pages_findings
+            .iter()
+            .all(|f| f["rule"] == "pages.import-broken")
+    );
+    assert_eq!(
+        pages_findings[0]["location"]["file"].as_str().unwrap(),
+        "app/[locale]/about/page.tsx"
+    );
+    assert_eq!(
+        pages_findings[1]["location"]["file"].as_str().unwrap(),
+        "views/about/about.view.tsx"
+    );
+
+    let sections = dimension_of(&output, "sections");
+    assert_eq!(sections["errors"], 1, "{}", stdout(&output));
+    let sections_findings = sections["findings"].as_array().unwrap();
+    assert_eq!(
+        sections_findings[0]["rule"].as_str().unwrap(),
+        "sections.import-broken"
+    );
+    assert_eq!(
+        sections_findings[0]["location"]["file"].as_str().unwrap(),
+        "views/about/sections/hero.tsx"
+    );
+
+    let config = dimension_of(&output, "config");
+    assert_eq!(config["errors"], 1, "{}", stdout(&output));
+    assert_eq!(
+        config["findings"][0]["rule"].as_str().unwrap(),
+        "config.import-broken"
+    );
+
+    let human = sandbox.run(&project, &["status"]);
+    let report = stdout(&human);
+    // The clean components line proves the absent double-counting.
+    assert!(report.contains("components ✓"), "{report}");
+    assert!(report.contains("error: 4 errors, 0 to do"), "{report}");
+}
+
+#[test]
+fn components_leave_unused_custom_components_alone() {
+    // A custom component nobody references is not an invariant; the bare
+    // packages it or an icon component imports belong to `dependencies`,
+    // whatever `node_modules/` says.
+    let sandbox = Sandbox::new("components-unused");
+    let project = i18n_project("components-unused");
+    write_project_file(
+        &project,
+        "components/custom/unused.tsx",
+        "import { cn } from \"@sglara/cn\";\n\nexport const Unused = () => null;\n",
+    );
+
+    let human = sandbox.run(&project, &["status"]);
+    assert_eq!(human.status.code(), Some(0));
+    let report = stdout(&human);
+    assert!(report.contains("components ✓"), "{report}");
+    // No finding of any dimension: an unused component never fails `status`.
+    assert!(report.contains("✓ project is conformant\n"), "{report}");
+
+    let json = sandbox.run(&project, &["status", "--json"]);
+    assert!(components_findings(&json).is_empty());
+}
+
+#[test]
+fn components_leave_the_language_switcher_to_the_config_dimension() {
+    // The presence of `components/language-switcher.tsx` is a `config`
+    // finding (0024): the icon-less decision of 0007 keeps it there, and its
+    // import in `layout` resolves through the same base-file inventory.
+    let sandbox = Sandbox::new("components-language-switcher");
+    let project = i18n_project("components-language-switcher");
+    fs::remove_file(project.join("components/language-switcher.tsx")).unwrap();
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+
+    let components = dimension_of(&output, "components");
+    assert_eq!(components["errors"], 0, "{}", stdout(&output));
+    assert_eq!(components["todos"], 0);
+    assert!(components["findings"].as_array().unwrap().is_empty());
+
+    let config = dimension_of(&output, "config");
+    assert_eq!(config["errors"], 1, "{}", stdout(&output));
+    let findings = config["findings"].as_array().unwrap();
+    assert_eq!(findings.len(), 1, "{}", stdout(&output));
+    assert_eq!(findings[0]["rule"].as_str().unwrap(), "config.file-missing");
+    assert_eq!(
+        findings[0]["location"]["file"].as_str().unwrap(),
+        "components/language-switcher.tsx"
+    );
+}
+
+#[test]
+fn components_report_nothing_without_the_components_folders() {
+    // Transverse rule: absent `components/` folders never crash the walk;
+    // their absence is already a `config.file-missing` finding.
+    let sandbox = Sandbox::new("components-stripped");
+    let project = i18n_project("components-stripped");
+    fs::remove_dir_all(project.join("components/custom")).unwrap();
+    fs::remove_dir_all(project.join("components/icons")).unwrap();
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let components = dimension_of(&output, "components");
+    assert_eq!(components["errors"], 0, "{}", stdout(&output));
+    assert_eq!(components["todos"], 0);
+    assert!(components["findings"].as_array().unwrap().is_empty());
+    // The absent folders are `config` findings, never a components one.
+    let config = dimension_of(&output, "config");
+    assert_eq!(config["errors"], 2, "{}", stdout(&output));
+    let missing = config["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|f| f["rule"] == "config.file-missing");
+    assert!(missing, "{}", stdout(&output));
+}
+
 // ==== `status` (dependencies dimension) ===================================
 
 /// One JSON dimension object of a `status --json` run.

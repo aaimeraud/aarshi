@@ -1,3 +1,4 @@
+mod components;
 mod config;
 mod dependencies;
 mod i18n;
@@ -201,8 +202,8 @@ const COLLECTORS: &[Collector] = &[
     i18n::collect,
     pages::collect,
     sections::collect,
-    // `components` (ticket 0028) arrives with its own ticket, before the
-    // canonical last slot of `dependencies`.
+    components::collect,
+    // `dependencies` closes the list, in its canonical last slot.
     dependencies::collect,
 ];
 
