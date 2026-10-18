@@ -8,7 +8,7 @@ mod sections;
 
 use std::{env, fmt, str::FromStr};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::config::Config;
 
@@ -209,9 +209,13 @@ const COLLECTORS: &[Collector] = &[
 
 /// Runs the report. Returns `Ok` with exit code `0` (nothing broken), or
 /// `Err(status::Exit { 1 })` when at least one `error` was found, or
-/// `Err(status::Exit { 2 })` when the project cannot be analyzed.
+/// `Err(status::Exit { 2 })` when the project cannot be analyzed (no
+/// `aarshi.toml`, an unreadable or an invalid one): the message lands on
+/// stderr, nothing on stdout.
 pub fn run(options: Options) -> Result<()> {
-    let root = env::current_dir()?;
+    let root = env::current_dir()
+        .with_context(|| "cannot read the current folder")
+        .map_err(|error| Exit::new(2, &format!("cannot analyze aarshi.toml: {error:#}")))?;
     if !crate::config::is_aarshi_project(&root) {
         return Err(Exit::new(
             2,
@@ -219,7 +223,10 @@ pub fn run(options: Options) -> Result<()> {
         )
         .into());
     }
-    let project = Config::for_project(&root)?;
+    // An existing but unreadable or invalid `aarshi.toml` cannot be analyzed
+    // either (0011 code contract): it stops like the missing file, code 2.
+    let project = Config::for_project(&root)
+        .map_err(|error| Exit::new(2, &format!("cannot analyze aarshi.toml: {error:#}")))?;
 
     // No early stop inside the checks: the whole project is walked first.
     let mut findings = Vec::new();

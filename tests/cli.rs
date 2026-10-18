@@ -3622,3 +3622,60 @@ fn recipe_errors_only_hides_the_todos_without_the_info_line() {
          ✓ project is conformant (2 to do)\n"
     );
 }
+
+// ==== `status` (unanalyzable aarshi.toml) ==================================
+
+/// A project of the standard fixture whose `aarshi.toml` exists but cannot be
+/// analyzed: the file is rewritten with the broken content.
+fn unanalyzable_project(name: &str, toml: &str) -> PathBuf {
+    let project = i18n_project(name);
+    fs::write(project.join("aarshi.toml"), toml).unwrap();
+    project
+}
+
+/// An empty `languages` list is parseable TOML but fails validation: the run
+/// cannot analyze the project and stops like outside a project, code 2
+/// (0011/code, 0018), nothing on stdout, the reason on stderr.
+#[test]
+fn status_exits_two_when_aarshi_toml_is_invalid() {
+    let sandbox = Sandbox::new("status-invalid-toml");
+    let project = unanalyzable_project("status-invalid-toml", "languages = []\n");
+
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+    let error = stderr(&output);
+    assert!(error.contains("cannot analyze aarshi.toml:"), "{error}");
+    assert!(
+        error.contains("`languages` must contain at least one language"),
+        "{error}"
+    );
+
+    // The same stop in JSON mode: stdout stays a broken pipe, still code 2.
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+    assert!(
+        stderr(&output).contains("cannot analyze aarshi.toml:"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+/// A key outside the extended format hits the `deny_unknown_fields` guard of
+/// the file config: an invalid `aarshi.toml`, so the stop stays code 2.
+#[test]
+fn status_exits_two_when_aarshi_toml_has_an_unknown_key() {
+    let sandbox = Sandbox::new("status-unknown-key");
+    let project = unanalyzable_project(
+        "status-unknown-key",
+        "languages = [\"fr\", \"en\"]\ntemplates = \"custom\"\n",
+    );
+
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+    let error = stderr(&output);
+    assert!(error.contains("cannot analyze aarshi.toml:"), "{error}");
+    assert!(error.contains("unknown field `templates`"), "{error}");
+}
