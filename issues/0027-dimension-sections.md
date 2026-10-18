@@ -2,7 +2,7 @@
 labels: [wayfinder:implement]
 parent: 0014-map-implementation-status.md
 blocked-by: [0026-dimension-pages.md]
-status: open
+status: closed
 ---
 
 # Dimension `sections` : imports pendants, clés, marqueurs, orphelines
@@ -23,6 +23,6 @@ Rappel de spec : l'attente des clés section vient du système de fichiers (`vie
 
 ## Critères d'acceptance
 
-- [ ] Chaque règle a au moins un test noir (constat déclenché sur fixture, `rule`, gravité, message).
-- [ ] Une vue dont un seul des deux marqueurs manque produit un constat ; une vue complète n'en produit pas.
-- [ ] Une section orpheline (`todo`) compte dans le verdict `✓ project is conformant (N to do)` sans faire sortir du code `0`.
+- [x] Chaque règle a au moins un test noir (constat déclenché sur fixture, `rule`, gravité, message).
+- [x] Une vue dont un seul des deux marqueurs manque produit un constat ; une vue complète n'en produit pas.
+- [x] Une section orpheline (`todo`) compte dans le verdict `✓ project is conformant (N to do)` sans faire sortir du code `0`.

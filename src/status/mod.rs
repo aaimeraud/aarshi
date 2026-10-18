@@ -2,6 +2,7 @@ mod config;
 mod i18n;
 mod pages;
 mod render;
+mod sections;
 
 use std::{env, fmt, str::FromStr};
 
@@ -198,7 +199,8 @@ const COLLECTORS: &[Collector] = &[
     config::collect,
     i18n::collect,
     pages::collect,
-    // `sections`, `components` and `dependencies` likewise.
+    sections::collect,
+    // `components` and `dependencies` likewise.
 ];
 
 /// Runs the report. Returns `Ok` with exit code `0` (nothing broken), or

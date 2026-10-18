@@ -1561,14 +1561,19 @@ fn write_route(root: &Path, page: &str, content: &str) {
 }
 
 /// The minimal view and route aarshi writes for a page: the route imports
-/// the view through the alias, the view imports nothing.
+/// the view through the alias; the view imports `@/lib/i18n`, carries both
+/// `add -s` markers and imports no section.
 fn write_generated_page(root: &Path, page: &str) {
     let component = pascal(page);
-    write_view(
-        root,
-        page,
-        &format!("const {component}View = () => null;\n\nexport default {component}View;\n"),
-    );
+    let mut view = String::new();
+    view.push_str("import { t, type Locale } from \"@/lib/i18n\";\n");
+    view.push_str("// aarshi:imports:end\n\n");
+    view.push_str(&format!(
+        "const {component}View = ({{ locale }}: {{ locale: Locale }}) => (\n  <main>\n"
+    ));
+    view.push_str("    {/* aarshi:sections:end */}\n  </main>\n);\n\n");
+    view.push_str(&format!("export default {component}View;\n"));
+    write_view(root, page, &view);
     write_route(
         root,
         page,
@@ -2365,4 +2370,385 @@ fn config_leaves_missing_base_files_to_the_file_missing_rule() {
     assert_eq!(output.status.code(), Some(1));
     assert!(report.contains("error: missing `lib/i18n/index.ts`"), "{report}");
     assert!(!report.contains("imports `@/lib/i18n`"), "{report}");
+}
+// ==== `status` (sections dimension) =======================================
+
+/// The findings of the `sections` dimension of a `status --json` run.
+fn sections_findings(output: &Output) -> Vec<serde_json::Value> {
+    let document: serde_json::Value = serde_json::from_str(&stdout(output)).unwrap();
+    document["dimensions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|dimension| dimension["id"].as_str().unwrap() == "sections")
+        .map(|dimension| dimension["findings"].as_array().unwrap().clone())
+        .unwrap()
+}
+
+/// Writes `views/<page>/sections/<section>.tsx`.
+fn write_section(root: &Path, page: &str, section: &str, content: &str) {
+    let file = root
+        .join("views")
+        .join(page)
+        .join("sections")
+        .join(format!("{section}.tsx"));
+    fs::create_dir_all(file.parent().unwrap()).unwrap();
+    fs::write(file, content).unwrap();
+}
+
+/// The current `views/<page>/<page>.view.tsx` text.
+fn read_view_text(root: &Path, page: &str) -> String {
+    fs::read_to_string(
+        root.join("views")
+            .join(page)
+            .join(format!("{page}.view.tsx")),
+    )
+    .unwrap()
+}
+
+/// The current `views/<page>/sections/<section>.tsx` text.
+fn read_section_text(root: &Path, page: &str, section: &str) -> String {
+    fs::read_to_string(
+        root.join("views")
+            .join(page)
+            .join("sections")
+            .join(format!("{section}.tsx")),
+    )
+    .unwrap()
+}
+
+/// The section file the template writes for `<page>`/`<section>`: one
+/// `t` import resolving through the alias and the `<page>.<section>.title`
+/// key, nothing else.
+fn write_template_section(root: &Path, page: &str, section: &str) {
+    let component = pascal(section);
+    write_section(
+        root,
+        page,
+        section,
+        &format!(
+            "import {{ t, type Locale }} from \"@/lib/i18n\";\n\n \
+             export const {component}Section = ({{ locale }}: {{ locale: Locale }}) => (\n \
+             <h2>{{t(locale, \"{page}.{section}.title\")}}</h2>\n);\n"
+        ),
+    );
+}
+
+/// Replaces the view of `<page>` with the template shape: one import per
+/// section above `// aarshi:imports:end` and one call per section above
+/// `{/* aarshi:sections:end */}`.
+fn write_sectioned_view(root: &Path, page: &str, sections: &[&str]) {
+    let component = pascal(page);
+    let mut view = String::new();
+    view.push_str("import { t, type Locale } from \"@/lib/i18n\";\n");
+    for section in sections {
+        view.push_str(&format!(
+            "import {{ {} }} from \"./sections/{section}\";\n",
+            pascal(section)
+        ));
+    }
+    view.push_str("// aarshi:imports:end\n\n");
+    view.push_str(&format!(
+        "const {component}View = ({{ locale }}: {{ locale: Locale }}) => (\n  <main>\n"
+    ));
+    view.push_str(&format!("    <h1>{{t(locale, \"{page}.title\")}}</h1>\n"));
+    for section in sections {
+        view.push_str(&format!(
+            "    <{}Section locale={{locale}} />\n",
+            pascal(section)
+        ));
+    }
+    view.push_str("    {/* aarshi:sections:end */}\n  </main>\n);\n\n");
+    view.push_str(&format!("export default {component}View;\n"));
+    write_view(root, page, &view);
+}
+
+/// The conformant sections fixture: the home page of `pages_project` (its
+/// view carries both markers) plus a fully wired `about` page with one
+/// `hero` section, whose title keys live in every dictionary.
+fn sections_project(name: &str) -> PathBuf {
+    let root = pages_project(name);
+    complete_about_page(&root, "about");
+    write_sectioned_view(&root, "about", &["hero"]);
+    write_template_section(&root, "about", "hero");
+    write_dictionary(
+        &root,
+        "fr",
+        &[
+            ("home.title", "Accueil"),
+            ("about.title", "À propos"),
+            ("about.hero.title", "Le héros"),
+        ],
+    );
+    write_dictionary(
+        &root,
+        "en",
+        &[
+            ("home.title", "Home"),
+            ("about.title", "About"),
+            ("about.hero.title", "The hero"),
+        ],
+    );
+    root
+}
+
+#[test]
+fn status_reports_a_dangling_section_import() {
+    let sandbox = Sandbox::new("sections-file-missing");
+    let project = pages_project("sections-file-missing");
+    complete_about_page(&project, "about");
+    // The view imports `./sections/hero` but no section file sits there.
+    write_sectioned_view(&project, "about", &["hero"]);
+
+    let human = sandbox.run(&project, &["status"]);
+    assert_eq!(human.status.code(), Some(1));
+    let report = stdout(&human);
+    assert!(
+        report.contains(
+            "sections\n  error: dangling import `./sections/hero` in `views/about/about.view.tsx`\n"
+        ),
+        "{report}"
+    );
+
+    let json = sandbox.run(&project, &["status", "--json"]);
+    let findings = sections_findings(&json);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(finding["rule"].as_str().unwrap(), "sections.file-missing");
+    assert_eq!(finding["severity"].as_str().unwrap(), "error");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "dangling import `./sections/hero` in `views/about/about.view.tsx`"
+    );
+    assert_eq!(
+        finding["detail"].as_str().unwrap(),
+        "expected views/about/sections/hero.tsx"
+    );
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "views/about/about.view.tsx"
+    );
+}
+
+#[test]
+fn status_reports_a_section_title_key_missing_from_a_dictionary() {
+    let sandbox = Sandbox::new("sections-title-key");
+    let project = pages_project("sections-title-key");
+    // The section is on the filesystem and imported; only its
+    // `<page>.<section>.title` key stays unknown to the dictionaries.
+    complete_about_page(&project, "about");
+    write_sectioned_view(&project, "about", &["hero"]);
+    write_template_section(&project, "about", "hero");
+
+    let human = sandbox.run(&project, &["status"]);
+    assert_eq!(human.status.code(), Some(1));
+    let report = stdout(&human);
+    assert!(
+        report.contains("error: `about.hero.title` is missing from the dictionary of `fr`\n"),
+        "{report}"
+    );
+    assert!(
+        report.contains("error: `about.hero.title` is missing from the dictionary of `en`\n"),
+        "{report}"
+    );
+
+    let json = sandbox.run(&project, &["status", "--json"]);
+    let findings = sections_findings(&json);
+    assert_eq!(findings.len(), 2);
+    // Sorted by dictionary file: `en` before `fr`.
+    for (finding, locale) in [(&findings[0], "en"), (&findings[1], "fr")] {
+        assert_eq!(
+            finding["rule"].as_str().unwrap(),
+            "sections.title-key-missing"
+        );
+        assert_eq!(finding["severity"].as_str().unwrap(), "error");
+        assert!(
+            finding["summary"]
+                .as_str()
+                .unwrap()
+                .starts_with("`about.hero.title` is missing from the dictionary of `"),
+            "{finding:?}"
+        );
+        assert_eq!(
+            finding["location"]["file"].as_str().unwrap(),
+            format!("lib/i18n/dictionaries/{locale}.ts")
+        );
+        assert_eq!(finding["location"]["locale"].as_str().unwrap(), locale);
+        assert_eq!(
+            finding["location"]["key"].as_str().unwrap(),
+            "about.hero.title"
+        );
+    }
+}
+
+#[test]
+fn status_reports_the_missing_imports_marker() {
+    let sandbox = Sandbox::new("sections-marker-imports");
+    let project = sections_project("sections-marker-imports");
+    // The view lost its import-block marker; the section block one stays.
+    let view = read_view_text(&project, "about");
+    let view = view.replacen("// aarshi:imports:end\n", "", 1);
+    write_view(&project, "about", &view);
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let findings = sections_findings(&output);
+    // One finding: only one of the two markers is gone.
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(finding["rule"].as_str().unwrap(), "sections.marker-missing");
+    assert_eq!(finding["severity"].as_str().unwrap(), "error");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "`views/about/about.view.tsx` is missing the marker `// aarshi:imports:end`"
+    );
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "views/about/about.view.tsx"
+    );
+    assert!(finding.get("detail").is_none(), "{finding:?}");
+}
+
+#[test]
+fn status_reports_the_missing_sections_marker() {
+    let sandbox = Sandbox::new("sections-marker-sections");
+    let project = sections_project("sections-marker-sections");
+    // The view lost its section-block marker; the import block one stays.
+    let view = read_view_text(&project, "about");
+    let view = view.replacen("    {/* aarshi:sections:end */}\n", "", 1);
+    write_view(&project, "about", &view);
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let findings = sections_findings(&output);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(finding["rule"].as_str().unwrap(), "sections.marker-missing");
+    assert_eq!(finding["severity"].as_str().unwrap(), "error");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "`views/about/about.view.tsx` is missing the marker `{/* aarshi:sections:end */}`"
+    );
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "views/about/about.view.tsx"
+    );
+    assert!(finding.get("detail").is_none(), "{finding:?}");
+}
+
+#[test]
+fn status_reports_no_marker_finding_for_a_complete_view() {
+    let sandbox = Sandbox::new("sections-marker-complete");
+    let project = sections_project("sections-marker-complete");
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(sections_findings(&output).is_empty());
+    let document: serde_json::Value = serde_json::from_str(&stdout(&output)).unwrap();
+    let sections = document["dimensions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|dimension| dimension["id"].as_str().unwrap() == "sections")
+        .unwrap();
+    assert_eq!(sections["errors"], 0);
+    assert_eq!(sections["todos"], 0);
+}
+
+#[test]
+fn status_reports_an_orphan_section_as_a_todo() {
+    let sandbox = Sandbox::new("sections-orphan");
+    let project = pages_project("sections-orphan");
+    // The home section exists with its keys, but the home view (written by
+    // the generator) does not import it: the only finding is one todo, and
+    // the run exits 0.
+    write_template_section(&project, "home", "hero");
+    write_dictionary(
+        &project,
+        "fr",
+        &[("home.title", "Accueil"), ("home.hero.title", "Le héros")],
+    );
+    write_dictionary(
+        &project,
+        "en",
+        &[("home.title", "Home"), ("home.hero.title", "The hero")],
+    );
+
+    let human = sandbox.run(&project, &["status"]);
+    assert_eq!(human.status.code(), Some(0));
+    let report = stdout(&human);
+    assert!(
+        report.contains("sections\n  todo: section `hero` of `home` is never imported\n"),
+        "{report}"
+    );
+    assert!(
+        report.contains("✓ project is conformant (1 to do)\n"),
+        "{report}"
+    );
+
+    let json = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(json.status.code(), Some(0));
+    let findings = sections_findings(&json);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(finding["rule"].as_str().unwrap(), "sections.orphan");
+    assert_eq!(finding["severity"].as_str().unwrap(), "todo");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "section `hero` of `home` is never imported"
+    );
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "views/home/sections/hero.tsx"
+    );
+    assert!(finding.get("detail").is_none(), "{finding:?}");
+
+    // `--errors-only` hides the todo from the display, code and counters
+    // never move.
+    let errors_only = sandbox.run(&project, &["status", "--json", "--errors-only"]);
+    assert_eq!(errors_only.status.code(), Some(0));
+    assert!(sections_findings(&errors_only).is_empty());
+    let document: serde_json::Value = serde_json::from_str(&stdout(&errors_only)).unwrap();
+    let sections = document["dimensions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|dimension| dimension["id"].as_str().unwrap() == "sections")
+        .unwrap();
+    assert_eq!(sections["errors"], 0);
+    assert_eq!(sections["todos"], 1);
+}
+
+#[test]
+fn status_reports_a_broken_import_in_a_section() {
+    let sandbox = Sandbox::new("sections-import-broken");
+    let project = sections_project("sections-import-broken");
+    // The section stubs `@/components/custom/star`, which matches no file.
+    let hero = read_section_text(&project, "about", "hero");
+    write_section(
+        &project,
+        "about",
+        "hero",
+        &format!("import {{ Star }} from \"@/components/custom/star\";\n{hero}"),
+    );
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let findings = sections_findings(&output);
+    assert_eq!(findings.len(), 1);
+    let finding = &findings[0];
+    assert_eq!(finding["rule"].as_str().unwrap(), "sections.import-broken");
+    assert_eq!(finding["severity"].as_str().unwrap(), "error");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "broken import `@/components/custom/star` in `views/about/sections/hero.tsx`"
+    );
+    assert_eq!(
+        finding["detail"].as_str().unwrap(),
+        "no file matches `@/components/custom/star`"
+    );
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "views/about/sections/hero.tsx"
+    );
 }

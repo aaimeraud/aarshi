@@ -90,7 +90,6 @@ pub fn views(root: &Path) -> Vec<String> {
 
 /// Section names: the `<name>.tsx` files of `views/<page>/sections/`, sorted.
 /// A missing or unreadable folder yields an empty list.
-#[allow(dead_code)] // reused by the `sections` dimension (ticket 0027) next.
 pub fn sections(root: &Path, page: &str) -> Vec<String> {
     let dir = root.join("views").join(page).join("sections");
     let entries = match fs::read_dir(&dir) {
