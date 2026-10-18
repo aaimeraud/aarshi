@@ -2,7 +2,7 @@
 labels: [wayfinder:implement]
 parent: 0014-map-implementation-status.md
 blocked-by: [0030-recette-transverse.md]
-status: open
+status: closed
 ---
 
 # Documentation de `status` (README et CONVENTIONS, EN + FR)
@@ -17,7 +17,15 @@ La doc EN + FR mise à jour **avec** l'implémentation [décision 0012](0012-gri
 
 ## Critères d'acceptance
 
-- [ ] Une commande `status` documentée avec ses trois mécanismes de sortie (humain, codes, `--json`).
-- [ ] Le catalogue des invariants par dimension est présent dans CONVENTIONS (EN + FR), avec les 36 identifiants de règle et leurs gravités.
-- [ ] La mention `check` surviv sous forme d'alias visible ; aucune doc ne décrit `Command::Check`.
-- [ ] Les paires README/README.fr et CONVENTIONS/CONVENTIONS.fr sont redistribuées symétriquement (contenu identique, langue seule différente).
+- [x] Une commande `status` documentée avec ses trois mécanismes de sortie (humain, codes, `--json`).
+- [x] Le catalogue des invariants par dimension est présent dans CONVENTIONS (EN + FR), avec les 36 identifiants de règle et leurs gravités.
+- [x] La mention `check` surviv sous forme d'alias visible ; aucune doc ne décrit `Command::Check`.
+- [x] Les paires README/README.fr et CONVENTIONS/CONVENTIONS.fr sont redistribuées symétriquement (contenu identique, langue seule différente).
+
+## Resolution
+
+Fait, avec les choix de contenu de la résolution de [0021](0021-grilling-doc-status.md).
+
+- **README** : la puce `aarshi check` est remplacée par la section `aarshi status` (rôle, sortie humaine, codes `0`/`1`/`2`, `--dimension` et `--errors-only`, `--json` et `format_version: 1`, alias `check` visible), avec renvoi vers le catalogue de CONVENTIONS. La ligne `Status:` du README est étendue à « `aarshi status` is now implemented » (miroir FR exact).
+- **CONVENTIONS** : nouvelle sous-section « Invariants of the generated project » dans la section Generated projects — les 36 règles de [0011](0011-grilling-contrat-sortie.md) groupées par dimension (config, i18n, pages, sections, components, dependencies), un tiret par règle (identifiant + gravité + objet), et per-rule vs per-dimension tranché : par dimension.
+- **Parité** : les quatre fichiers sont livrés en paires symétriques EN/FR, même contenu et même ordre.
