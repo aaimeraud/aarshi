@@ -3,6 +3,7 @@ labels: [wayfinder:grilling]
 parent: 0005-map-status.md
 blocked-by: []
 status: open
+assignee: aaimeraud
 ---
 
 # Invariants config/projet et outillage : lesquels `status` vérifie-t-il ?

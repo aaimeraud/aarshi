@@ -2,7 +2,7 @@
 labels: [wayfinder:grilling]
 parent: 0005-map-status.md
 blocked-by: []
-status: open
+status: closed
 assignee: aaimeraud
 ---
 
@@ -37,4 +37,33 @@ Candidats relevés dans `src/add.rs`, `src/templates.rs`, `src/dictionary.rs` :
 
 ## Resolution
 
-<!-- à remplir à la résolution : invariants retenus, règle exacte, gravité error/todo, exemples -->
+**Catalogue pages/routes/sections/composants retenu.** L'attente des clés vient du système de fichiers (voir la note au-dessus).
+
+**Pages et routes** — tout en `error` :
+
+- vue présente et route absente ;
+- route présente dans `app/[locale]/` et vue absente — **route orpheline** (aujourd'hui invisible) ;
+- clé `"<page>.title"` absente d'un dictionnaire ;
+- page absente de `app/sitemap.ts` ;
+- entrée sitemap sans page correspondante (`/` = home est exclu : il est codé en dur dans le template) ;
+- import de la vue (`@/views/<page>/<page>.view`) absent ou incorrect dans la route.
+
+**Sections (`views/<page>/sections/<section>.tsx`)** :
+
+| Constat | Gravité |
+|---|---|
+| Import pendant (vue → `sections/<section>.tsx` absent) | `error` |
+| Clé `"<page>.<section>.title"` absente d'un dictionnaire | `error` |
+| Marqueur `// aarshi:imports:end` ou `{/* aarshi:sections:end */}` absent de la vue | `error` |
+| Section orpheline (`sections/*.tsx` jamais importée) | `todo` |
+
+**Icônes** : `components/icons/<name>.svg` sans `<name>.tsx` → `todo` (conversion pas encore faite) ; `<name>.tsx` sans `.svg` → **ignoré** (l'SVG a été retiré après conversion).
+
+**Liens et imports** : `status` vérifie que les imports des fichiers qu'il connaît (routes, vues, sections, `app/[locale]/layout.tsx`) **résolvent vers un fichier existant** → `error`. Un composant de `components/custom/` **non utilisé n'est pas signalé** (ce n'est pas un invariant). La *présence* de `components/language-switcher.tsx` relève du ticket « Invariants config/projet et outillage » ; son *import* est couvert ici.
+
+**Non vérifié, et pourquoi** : une clé présente dans le dictionnaire par défaut mais sans page ni section correspondante n'est **pas** signalée — le dev peut ajouter des clés à la main (`common.cta`), donc l'absence de correspondance fichier n'est pas une anomalie.
+
+**Règles de mise en œuvre** :
+
+- Le scan des routes est **récursif** sous `app/[locale]/` (toute `page.tsx`).
+- **Règle transverse** (notée dans les Notes de la carte) : une attente non satisfaite — fichier/dossier clé absent (`views/`, `lib/i18n/config.ts`, dictionnaire de la langue par défaut, …) — est un **constat** (`error`), jamais un arrêt : `status` continue et rapporte tout ce qu'il peut.

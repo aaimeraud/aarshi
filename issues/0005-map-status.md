@@ -20,6 +20,7 @@ Une spec validée et implémentable de `aarshi status` : une commande de diagnos
 - Préférences standing : sortie CLI en anglais (cohérente avec `error:` / `success:` / `info:`), issues en français ; aucune écriture dans le projet analysé.
 - Notes de recherche : dossier `research/` à la racine du dépôt (un fichier par ticket de recherche) ; chaque ticket `wayfinder:research` pointe vers son fichier.
 - Exécution : cet effort autorise d'enchaîner plusieurs tickets dans une même session (demande explicite) ; l'agent ouvre le ticket suivant dès qu'une résolution est enregistrée. Chaque résolution est commitée séparément pour pouvoir s'arrêter à tout moment.
+- Règle transverse : toute attente non satisfaite est un **constat** ; `status` ne s'arrête jamais sur un fichier-clé absent (contrairement à `check` aujourd'hui) — il continue et rapporte tout ce qu'il peut.
 
 ## Decisions so far
 
@@ -28,6 +29,7 @@ Une spec validée et implémentable de `aarshi status` : une commande de diagnos
 - [Recherche : comment les CLI conçoivent une commande de diagnostic (`doctor`/`status`)](0009-research-doctor-cli.md) : catégories nommées et stables ; gravité `error`/`warning` ; code de sortie binaire (non nul si et seulement s'il y a ≥ 1 `error`) + code dédié à l'erreur interne ; `--json` versionné à identifiants de règle stables ; SARIF hors v1.
 - [Surface de `status` et absorption de `check`](0010-grilling-surface-status.md) : terme canonique « dimension » ; `check` = alias **visible** de `status` (mêmes flags/sortie/code, sans message de dépréciation) ; filtre `--dimension <nom>` répétable et validé par `clap` ; `--errors-only` seul mode court ; hors projet, arrêt avec `no aarshi.toml in this folder; nothing to check` ; `status` en dernier dans l'aide ; doc déléguée au ticket de livraison.
 - [Invariants i18n : lesquels `status` vérifie-t-il, et à quelle gravité ?](0006-grilling-invariants-i18n.md) : config i18n vérifiée en entier (`languages` ↔ `aarshi.toml`, `defaultLocale`, `direction`, `index.ts`) = `error` ; dictionnaires : fichier absent / clé manquante / doublon = `error`, valeur vide (blancs inclus) / clé en trop / dictionnaire orphelin = `todo` ; l'attente des clés attendues d'une vue est rattachée au ticket pages/sections.
+- [Invariants pages, routes, sections et composants : lesquels `status` vérifie-t-il ?](0007-grilling-invariants-pages.md) : vue ↔ route (deux sens) + clé `"<page>.title"` + sitemap + import de vue = `error` ; sections : import pendant / clé / marqueur = `error`, section orpheline = `todo` ; icône `.svg` sans `.tsx` = `todo` (`.tsx` sans `.svg` ignoré) ; les imports connus doivent résoudre (`error`), les composants `custom` non utilisés ne sont pas signalés ; les clés attendues viennent du filesystem.
 
 ## Not yet specified
 
