@@ -125,8 +125,48 @@ fn write_dictionary(root: &Path, locale: &str, entries: &[(&str, &str)]) {
     .unwrap();
 }
 
-/// A minimal generated project covering the tracer `i18n` checks: two
-/// languages with consistent config and complete dictionaries. The project
+/// A faithful `lib/i18n/config.ts` for the default fixture languages, as the
+/// setup template writes it.
+const FIXTURE_CONFIG: &str = r#"export const languages = ["fr", "en"] as const;
+
+export type Locale = (typeof languages)[number];
+
+export const defaultLocale: Locale = "fr";
+
+export const direction: Record<Locale, "ltr" | "rtl"> = {
+  fr: "ltr",
+  en: "ltr"
+};
+
+export const isLocale = (value: string): value is Locale => {
+  return (languages as readonly string[]).includes(value);
+};
+
+/** Public URL of a page within a locale, e.g. pagePath("fr", "/about") === "/fr/about". */
+export const pagePath = (locale: Locale, path: string): string => {
+  return path === "/" ? `/${locale}` : `/${locale}${path}`;
+};
+"#;
+
+/// A faithful `lib/i18n/index.ts` for the default fixture languages.
+const FIXTURE_INDEX: &str = r#"import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+
+import { SITE_URL } from "@/lib/site";
+
+import { isLocale, languages, pagePath, type Locale } from "./config";
+import { messages as fr } from "./dictionaries/fr";
+import { messages as en } from "./dictionaries/en";
+
+export * from "./config";
+
+export type MessageKey = keyof typeof fr;
+
+const messages = { fr, en } satisfies Record<Locale, Record<MessageKey, string>>;
+"#;
+
+/// A minimal generated project covering the `i18n` checks: two languages
+/// with consistent config and complete dictionaries. The project
 /// lives in a `project/` subfolder to stay clear of the sandbox files.
 fn i18n_project(name: &str) -> PathBuf {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name).join("project");
@@ -137,11 +177,8 @@ fn i18n_project(name: &str) -> PathBuf {
         "languages = [\"fr\", \"en\"]\npackage_manager = \"npm\"\n",
     )
     .unwrap();
-    fs::write(
-        root.join("lib/i18n/config.ts"),
-        "export const languages = [\"fr\", \"en\"] as const;\n",
-    )
-    .unwrap();
+    fs::write(root.join("lib/i18n/config.ts"), FIXTURE_CONFIG).unwrap();
+    fs::write(root.join("lib/i18n/index.ts"), FIXTURE_INDEX).unwrap();
     write_dictionary(&root, "fr", &[("home.title", "Accueil")]);
     write_dictionary(&root, "en", &[("home.title", "Home")]);
     root
@@ -234,6 +271,13 @@ fn status_todos_alone_still_exit_zero() {
 fn status_counts_whitespace_values_as_empty() {
     let sandbox = Sandbox::new("status-blank");
     let project = i18n_project("status-blank");
+    // `intro.text` must exist in the reference dictionary too, so only the
+    // empty-value rule is at play.
+    write_dictionary(
+        &project,
+        "fr",
+        &[("home.title", "Accueil"), ("intro.text", "Intro")],
+    );
     write_dictionary(&project, "en", &[("home.title", " "), ("intro.text", "\n")]);
 
     let output = sandbox.run(&project, &["status"]);
@@ -1095,4 +1139,326 @@ fn add_reads_the_languages_written_at_setup() {
     assert!(sandbox.add(&project, &["-p", "about"]).status.success());
     assert!(project.join("app/[locale]/about/page.tsx").exists());
     assert!(read(&project.join("lib/i18n/config.ts")).contains("\"ar\", \"en\""));
+}
+
+// ==== `status` (i18n dimension) ==========================================
+
+#[test]
+fn status_reports_a_default_locale_mismatch() {
+    let sandbox = Sandbox::new("status-default-locale");
+    let project = i18n_project("status-default-locale");
+    fs::write(
+        project.join("lib/i18n/config.ts"),
+        read(&project.join("lib/i18n/config.ts")).replace(
+            "defaultLocale: Locale = \"fr\"",
+            "defaultLocale: Locale = \"en\"",
+        ),
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        report.contains("error: lib/i18n/config.ts defaults to `en`, but aarshi.toml defaults to `fr`"),
+        "{report}"
+    );
+    // The direction table is still consistent: no extra finding.
+    assert!(!report.contains("direction"), "{report}");
+}
+
+#[test]
+fn status_reports_a_missing_default_locale() {
+    let sandbox = Sandbox::new("status-no-default-locale");
+    let project = i18n_project("status-no-default-locale");
+    fs::write(
+        project.join("lib/i18n/config.ts"),
+        read(&project.join("lib/i18n/config.ts"))
+            .replace("export const defaultLocale: Locale = \"fr\";\n\n", ""),
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert!(report.contains("error: lib/i18n/config.ts has no defaultLocale"), "{report}");
+}
+
+#[test]
+fn status_reports_an_rtl_language_declared_ltr() {
+    let sandbox = Sandbox::new("status-direction-rtl");
+    fs::create_dir_all(sandbox.home.join(".config/aarshi")).unwrap();
+    fs::write(
+        sandbox.home.join(".config/aarshi/config.toml"),
+        "languages = [\"ar\", \"en\"]\n",
+    )
+    .unwrap();
+    let project = sandbox.setup("site", &[]);
+    // The `ar` entry loses its `rtl`: `ltr` is wrong for a right-to-left language.
+    fs::write(
+        project.join("lib/i18n/config.ts"),
+        read(&project.join("lib/i18n/config.ts")).replace("ar: \"rtl\"", "ar: \"ltr\""),
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        report.contains("error: ar has direction `ltr` instead of `rtl`"),
+        "{report}"
+    );
+}
+
+#[test]
+fn status_reports_a_direction_entry_missing_for_a_language() {
+    let sandbox = Sandbox::new("status-direction-missing");
+    let project = i18n_project("status-direction-missing");
+    fs::write(
+        project.join("lib/i18n/config.ts"),
+        read(&project.join("lib/i18n/config.ts"))
+            .replace("\n  en: \"ltr\"\n};", "\n};"),
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        report.contains("error: en is missing a direction entry"),
+        "{report}"
+    );
+}
+
+#[test]
+fn status_accepts_a_conformant_rtl_default_language() {
+    let sandbox = Sandbox::new("status-rtl-clean");
+    fs::create_dir_all(sandbox.home.join(".config/aarshi")).unwrap();
+    fs::write(
+        sandbox.home.join(".config/aarshi/config.toml"),
+        "languages = [\"ar\", \"en\"]\n",
+    )
+    .unwrap();
+    let project = sandbox.setup("site", &[]);
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(report.contains("✓ project is conformant"), "{report}");
+}
+
+#[test]
+fn status_checks_the_imports_of_index_ts_per_language() {
+    let sandbox = Sandbox::new("status-index-import");
+    let project = i18n_project("status-index-import");
+    fs::write(
+        project.join("lib/i18n/index.ts"),
+        read(&project.join("lib/i18n/index.ts"))
+            .replace("import { messages as en } from \"./dictionaries/en\";\n", "")
+            .replace("{ fr, en }", "{ fr, pod }"),
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        report.contains("error: lib/i18n/index.ts has no import for `en`"),
+        "{report}"
+    );
+    assert!(
+        report.contains("error: lib/i18n/index.ts has no map entry for `en`"),
+        "{report}"
+    );
+    assert!(
+        report.contains("error: lib/i18n/index.ts has an extra map entry `pod`"),
+        "{report}"
+    );
+    assert!(report.contains("error: 3 errors"), "{report}");
+}
+
+#[test]
+fn status_reports_an_index_import_of_an_undeclared_language() {
+    let sandbox = Sandbox::new("status-index-extra-import");
+    let project = i18n_project("status-index-extra-import");
+    fs::write(
+        project.join("lib/i18n/index.ts"),
+        read(&project.join("lib/i18n/index.ts")).replace(
+            "import { messages as fr } from \"./dictionaries/fr\";",
+            "import { messages as zz } from \"./dictionaries/zz\";\nimport { messages as fr } from \"./dictionaries/fr\";",
+        ),
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert!(
+        report.contains("error: lib/i18n/index.ts has an extra import `zz`"),
+        "{report}"
+    );
+}
+
+#[test]
+fn status_reports_a_message_key_taken_from_the_wrong_language() {
+    let sandbox = Sandbox::new("status-index-message-key");
+    let project = i18n_project("status-index-message-key");
+    fs::write(
+        project.join("lib/i18n/index.ts"),
+        read(&project.join("lib/i18n/index.ts")).replace("keyof typeof fr", "keyof typeof en"),
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        report.contains(
+            "error: lib/i18n/index.ts derives MessageKey from `en`, but the default language is `fr`"
+        ),
+        "{report}"
+    );
+}
+
+#[test]
+fn status_reports_a_missing_index_file_without_stopping_the_report() {
+    let sandbox = Sandbox::new("status-index-missing");
+    let project = i18n_project("status-index-missing");
+    fs::remove_file(project.join("lib/i18n/index.ts")).unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        report.contains("error: lib/i18n/index.ts is missing or unreadable"),
+        "{report}"
+    );
+    // No early stop: the report still renders every dimension.
+    assert!(report.contains("pages ✓\nsections ✓\ncomponents ✓\ndependencies ✓"), "{report}");
+    assert!(report.contains("error: 1 error"), "{report}");
+}
+
+#[test]
+fn status_reports_duplicate_keys_in_each_dictionary() {
+    let sandbox = Sandbox::new("status-key-duplicate");
+    let project = i18n_project("status-key-duplicate");
+    // In a non-default dictionary…
+    write_dictionary(
+        &project,
+        "en",
+        &[("home.title", "Home"), ("home.title", "Home again")],
+    );
+    // …and in the default one.
+    write_dictionary(
+        &project,
+        "fr",
+        &[("home.title", "Accueil"), ("home.title", "Salut")],
+    );
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        report.contains("error: en has a duplicate entry for `home.title`"),
+        "{report}"
+    );
+    assert!(
+        report.contains("error: fr has a duplicate entry for `home.title`"),
+        "{report}"
+    );
+    // The key exists: no missing-translation finding on top of it.
+    assert!(!report.contains("is missing a translation"), "{report}");
+}
+
+#[test]
+fn status_reports_a_key_extra_in_a_non_default_dictionary() {
+    let sandbox = Sandbox::new("status-key-extra");
+    let project = i18n_project("status-key-extra");
+    write_dictionary(&project, "en", &[("home.title", "Home"), ("extra.text", "Extras")]);
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    // A `todo` alone keeps the run green.
+    assert_eq!(output.status.code(), Some(0));
+    assert!(
+        report.contains("todo: en has an extra translation for `extra.text`"),
+        "{report}"
+    );
+    assert!(report.contains("✓ project is conformant (1 to do)"), "{report}");
+
+    // The JSON carries the detail: the default dictionary is the reference.
+    let output = sandbox.run(&project, &["status", "--json"]);
+    let document = serde_json::from_str::<serde_json::Value>(&stdout(&output)).unwrap();
+    let finding = &document["dimensions"][1]["findings"][0];
+    assert_eq!(finding["rule"], "i18n.key-extra", "{}", stdout(&output));
+    assert_eq!(finding["detail"], "reference dictionary `fr`");
+    assert_eq!(finding["severity"], "todo");
+    assert_eq!(finding["location"]["key"], "extra.text");
+}
+
+#[test]
+fn status_reports_a_dictionary_orphan() {
+    let sandbox = Sandbox::new("status-dictionary-orphan");
+    let project = i18n_project("status-dictionary-orphan");
+    write_dictionary(&project, "zz", &[("home.title", "Salut tout le monde")]);
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(
+        report.contains("todo: no language for the `zz` dictionary"),
+        "{report}"
+    );
+}
+
+#[test]
+fn status_reports_a_missing_config_file_without_stopping_the_report() {
+    let sandbox = Sandbox::new("status-config-missing");
+    let project = i18n_project("status-config-missing");
+    fs::remove_file(project.join("lib/i18n/config.ts")).unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        report.contains("error: lib/i18n/config.ts is missing or unreadable"),
+        "{report}"
+    );
+    // No early stop: the dictionaries are still walked on the same run.
+    assert!(report.contains("pages ✓\nsections ✓\ncomponents ✓\ndependencies ✓"), "{report}");
+}
+
+/// A dictionary mixing a duplicate (`error`), an empty value and an extra
+/// key (`todo`), plus an orphan dictionary file: the findings come out
+/// sorted by file then rule, and the verdict counts each severity.
+#[test]
+fn status_sorts_a_mixed_i18n_dictionary_file_by_file_then_rule() {
+    let sandbox = Sandbox::new("status-i18n-mixed");
+    let project = i18n_project("status-i18n-mixed");
+    write_dictionary(
+        &project,
+        "en",
+        &[
+            ("home.title", "Home"),
+            ("home.title", ""),
+            ("extra.text", "Extras"),
+        ],
+    );
+    write_dictionary(&project, "zz", &[("home.title", "ZZ")]);
+
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stdout(&output),
+        "config ✓\n\
+         i18n\n\
+         \x20 error: en has a duplicate entry for `home.title`\n\
+         \x20 todo: en has an empty translation for `home.title`\n\
+         \x20 todo: en has an extra translation for `extra.text`\n\
+         \x20 todo: no language for the `zz` dictionary\n\
+         pages ✓\n\
+         sections ✓\n\
+         components ✓\n\
+         dependencies ✓\n\
+         \n\
+         error: 1 error, 3 to do\n"
+    );
 }

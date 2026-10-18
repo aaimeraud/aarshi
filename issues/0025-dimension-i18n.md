@@ -2,7 +2,7 @@
 labels: [wayfinder:implement]
 parent: 0014-map-implementation-status.md
 blocked-by: [0023-socle-tracer-i18n.md]
-status: open
+status: closed
 ---
 
 # Dimension `i18n` complète : config.ts, index.ts, doublons, excédents, orphelins
@@ -22,6 +22,6 @@ Rappels de spec : comparaisons **textuelles** (pas de parseur TS) ; la langue pa
 
 ## Critères d'acceptance
 
-- [ ] Chaque règle a au moins un test noir (constat déclenché sur fixture, `rule`, gravité, message).
-- [ ] Un dictionnaire avec doublon, valeurs vides, clés en trop et orphelin mélangeant les gravités produit des constats triés par fichier puis règle, et le verdict final compte correctement.
-- [ ] `config.ts` absent ou illisible produit un `error` (`i18n.languages-mismatch` ou file-missing selon le libellé retenu) sans arrêter les autres dimensions.
+- [x] Chaque règle a au moins un test noir (constat déclenché sur fixture, `rule`, gravité, message).
+- [x] Un dictionnaire avec doublon, valeurs vides, clés en trop et orphelin mélangeant les gravités produit des constats triés par fichier puis règle, et le verdict final compte correctement.
+- [x] `config.ts` absent ou illisible produit un `error` (`i18n.languages-mismatch` ou file-missing selon le libellé retenu) sans arrêter les autres dimensions. Libellé retenu : `i18n.languages-mismatch` (« is missing or unreadable »), la dimension `config` gardant `config.file-missing` pour son ticket.
