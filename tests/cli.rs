@@ -1399,15 +1399,12 @@ fn status_reports_a_missing_index_file_without_stopping_the_report() {
     let output = sandbox.run(&project, &["status"]);
     let report = stdout(&output);
     assert_eq!(output.status.code(), Some(1));
-    assert!(
-        report.contains("error: lib/i18n/index.ts is missing or unreadable"),
-        "{report}"
-    );
+    assert!(report.contains("error: lib/i18n/index.ts is missing or unreadable"), "{report}");
     // No early stop: the report still renders every dimension.
     assert!(report.contains("pages ✓\nsections ✓\ncomponents ✓\ndependencies ✓"), "{report}");
-    // Both dimensions see the gone file: `i18n` misses it and `config`
-    // counts the missing base file.
-    assert!(report.contains("error: 2 errors"), "{report}");
+    // The gone file is an i18n object (0013): the i18n dimension reports it
+    // alone, the base inventory stays silent (0030 reconciliation).
+    assert!(report.contains("error: 1 error"), "{report}");
 }
 
 #[test]
@@ -2027,10 +2024,12 @@ fn config_reports_a_project_without_base_files_and_still_exits_one() {
 
     let output = status_config(&sandbox, &project);
     assert_eq!(output.status.code(), Some(1));
-    // One finding per missing entry of the inventory, then a clean run.
+    // One finding per missing entry of the inventory, then a clean run. The
+    // two `lib/i18n` files are reported through the `i18n` dimension (0030
+    // reconciliation), so they leave this count to `i18n.errors`.
     assert_eq!(
         stdout(&output).matches("error: missing `").count(),
-        13,
+        11,
         "{}",
         stdout(&output)
     );
@@ -2372,17 +2371,17 @@ fn config_leaves_missing_base_files_to_the_file_missing_rule() {
     write_project_file(
         &project,
         "app/[locale]/layout.tsx",
-        "import { resolve } from \"@/lib/i18n\";\n",
+        "import { resolve } from \"@/lib/site\";\n",
     );
-    fs::remove_file(project.join("lib/i18n/index.ts")).unwrap();
+    fs::remove_file(project.join("lib/site.ts")).unwrap();
 
     // The import of a missing base file is already reported once, by
     // `config.file-missing`: no duplicate `config.import-broken` finding.
     let output = status_config(&sandbox, &project);
     let report = stdout(&output);
     assert_eq!(output.status.code(), Some(1));
-    assert!(report.contains("error: missing `lib/i18n/index.ts`"), "{report}");
-    assert!(!report.contains("imports `@/lib/i18n`"), "{report}");
+    assert!(report.contains("error: missing `lib/site.ts`"), "{report}");
+    assert!(!report.contains("imports `@/lib/site`"), "{report}");
 }
 // ==== `status` (sections dimension) =======================================
 
@@ -3417,4 +3416,209 @@ fn status_absorbs_an_unreadable_package_json() {
     let output = sandbox.run(&project, &["status"]);
     assert_eq!(output.status.code(), Some(0));
     assert!(stdout(&output).contains("dependencies ✓"), "{}", stdout(&output));
+}
+
+// ==== `status` (transverse recipe, 0030) ==================================
+
+/// The transverse worst case: a project reduced to its `aarshi.toml`. Nothing
+/// stops the walk: the six lines are rendered, every missing file of the
+/// inventory shows up once (the `lib/i18n` pair through the `i18n`
+/// dimension), the findings of each dimension come out sorted by file then
+/// rule, and the exit code stays truthful.
+#[test]
+fn recipe_a_project_carried_to_nothing_still_produces_the_full_report() {
+    let sandbox = Sandbox::new("recipe-bare");
+    let project = Path::new(env!("CARGO_TARGET_TMPDIR")).join("recipe-bare").join("project");
+    let _ = fs::remove_dir_all(&project);
+    fs::create_dir_all(&project).unwrap();
+    fs::write(
+        project.join("aarshi.toml"),
+        "languages = [\"fr\", \"en\"]\npackage_manager = \"npm\"\nui = \"base-ui\"\nicons = \"lucide\"\ncache_components = false\nsite_url = \"https://example.com\"\n",
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stdout(&output),
+        "config\n\
+         \x20 error: missing `app/[locale]/layout.tsx`\n\
+         \x20 error: missing `app/robots.ts`\n\
+         \x20 error: missing `app/sitemap.ts`\n\
+         \x20 error: missing `components/custom/`\n\
+         \x20 error: missing `components/icons/`\n\
+         \x20 error: missing `components/language-switcher.tsx`\n\
+         \x20 error: missing `components/ui/button-group.tsx`\n\
+         \x20 error: missing `components/ui/button.tsx`\n\
+         \x20 error: missing `eslint.config.mjs`\n\
+         \x20 error: missing `lib/site.ts`\n\
+         \x20 error: missing `next.config.ts`\n\
+         \x20 error: missing `postcss.config.mjs`\n\
+         \x20 error: missing `tsconfig.json`\n\
+         i18n\n\
+         \x20 error: lib/i18n/config.ts is missing or unreadable\n\
+         \x20 error: no dictionary for `en`\n\
+         \x20 error: no dictionary for `fr`\n\
+         \x20 error: lib/i18n/index.ts is missing or unreadable\n\
+         pages ✓\n\
+         sections ✓\n\
+         components ✓\n\
+         dependencies ✓\n\
+         \n\
+         error: 17 errors, 0 to do\n"
+    );
+}
+
+/// A missing `lib/i18n/config.ts` is an i18n object (0013): the i18n
+/// dimension reports it alone and the base inventory stays silent — one
+/// finding, one dimension, the exit code unchanged (0030 reconciliation of
+/// the 0025 coordination note).
+#[test]
+fn recipe_a_missing_i18n_file_is_reported_once_by_i18n() {
+    let sandbox = Sandbox::new("recipe-i18n-once");
+    let project = i18n_project("recipe-i18n-once");
+    fs::remove_file(project.join("lib/i18n/config.ts")).unwrap();
+
+    let output = sandbox.run(&project, &["status"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        stdout(&output),
+        "config ✓\n\
+         i18n\n\
+         \x20 error: lib/i18n/config.ts is missing or unreadable\n\
+         pages ✓\n\
+         sections ✓\n\
+         components ✓\n\
+         dependencies ✓\n\
+         \n\
+         error: 1 error, 0 to do\n"
+    );
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    let config = dimension_of(&output, "config");
+    assert_eq!(config["errors"], 0, "{}", stdout(&output));
+    assert!(config["findings"].as_array().unwrap().is_empty());
+    let findings = dimension_of(&output, "i18n")["findings"]
+        .as_array()
+        .unwrap()
+        .clone();
+    assert_eq!(findings.len(), 1, "{}", stdout(&output));
+    assert_eq!(findings[0]["rule"], "i18n.languages-mismatch");
+    assert_eq!(findings[0]["severity"], "error");
+}
+
+/// A missing `app/sitemap.ts` has no pages rule to absorb it: the base
+/// inventory reports it once (`config.file-missing`) and the pages
+/// comparisons are silently skipped (0016 addendum, frozen here).
+#[test]
+fn recipe_a_missing_sitemap_is_reported_once_by_config() {
+    let sandbox = Sandbox::new("recipe-sitemap-once");
+    let project = i18n_project("recipe-sitemap-once");
+    fs::remove_file(project.join("app/sitemap.ts")).unwrap();
+
+    let output = sandbox.run(&project, &["status", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let config = dimension_of(&output, "config");
+    let findings = config["findings"].as_array().unwrap();
+    assert_eq!(findings.len(), 1, "{}", stdout(&output));
+    assert_eq!(findings[0]["rule"], "config.file-missing");
+    assert_eq!(
+        findings[0]["summary"],
+        "missing `app/sitemap.ts`",
+        "{}",
+        stdout(&output)
+    );
+    let pages = dimension_of(&output, "pages");
+    assert_eq!(pages["errors"], 0, "{}", stdout(&output));
+    assert!(pages["findings"].as_array().unwrap().is_empty());
+}
+
+/// Repeated `--dimension` values and comma lists only shape the display:
+/// the exit code stays the project's, the global summary keeps every
+/// dimension counted, and the selected dimensions print in canonical order,
+/// not in flag order.
+#[test]
+fn recipe_dimension_repeats_and_lists_keep_the_code_and_the_summary() {
+    let sandbox = Sandbox::new("recipe-filter-shape");
+    let project = broken_project("recipe-filter-shape");
+
+    let human = sandbox.run(
+        &project,
+        &[
+            "status",
+            "--dimension",
+            "components,pages",
+            "--dimension",
+            "components",
+        ],
+    );
+    assert_eq!(human.status.code(), Some(1));
+    assert_eq!(
+        stdout(&human),
+        "pages ✓\n\
+         components ✓\n\
+         \n\
+         error: 2 errors, 1 to do\n\
+         info: 3 findings hidden by --dimension\n"
+    );
+
+    let output = sandbox.run(
+        &project,
+        &[
+            "status",
+            "--json",
+            "--dimension",
+            "components,pages",
+            "--dimension",
+            "components",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let document: serde_json::Value = serde_json::from_str(&stdout(&output)).unwrap();
+    let ids: Vec<&str> = document["dimensions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|dimension| dimension["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["pages", "components"], "{}", stdout(&output));
+    // The summary is never filtered: the hidden error still bites.
+    assert_eq!(document["summary"]["errors"], 2);
+    assert_eq!(document["summary"]["todos"], 1);
+    assert_eq!(document["summary"]["conformant"], false);
+    for dimension in document["dimensions"].as_array().unwrap() {
+        assert_eq!(dimension["errors"], 0, "{}", stdout(&output));
+        assert_eq!(dimension["todos"], 0);
+        assert!(dimension["findings"].as_array().unwrap().is_empty());
+    }
+}
+
+/// `--errors-only` takes the todos out of the human render: the dimension
+/// that only carries todos shows its bare identifier, the verdict keeps
+/// counting them, the exit code stays `0`, and no info line appears (only
+/// `--dimension` may hide findings count).
+#[test]
+fn recipe_errors_only_hides_the_todos_without_the_info_line() {
+    let sandbox = Sandbox::new("recipe-errors-only");
+    let project = todo_project("recipe-errors-only");
+
+    let output = sandbox.run(&project, &["status", "--errors-only"]);
+    assert_eq!(output.status.code(), Some(0));
+    let report = stdout(&output);
+    assert!(
+        report.contains("✓ project is conformant (2 to do)\n"),
+        "{report}"
+    );
+    assert!(!report.contains("hidden by"), "{report}");
+    assert_eq!(
+        report,
+        "config ✓\n\
+         i18n\n\
+         pages ✓\n\
+         sections ✓\n\
+         components ✓\n\
+         dependencies ✓\n\
+         \n\
+         ✓ project is conformant (2 to do)\n"
+    );
 }

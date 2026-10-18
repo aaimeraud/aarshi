@@ -43,6 +43,15 @@ const ASSET_EXTENSIONS: &[&str] = &[
     ".css", ".scss", ".sass", ".svg", ".json", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".md",
 ];
 
+/// Files of the base inventory reported through the dimension that owns
+/// their content (rule 0013, applied by the 0030 recipe): a missing or
+/// unreadable `lib/i18n/config.ts` is reported as `i18n.languages-mismatch`
+/// and `lib/i18n/index.ts` as `i18n.index-mismatch`, so `config.file-missing`
+/// stays silent about them and each object is reported exactly once. They
+/// stay in the inventory above, and the imports of a gone file are still
+/// absorbed by the missing list.
+const SELF_REPORTED: &[&str] = &["lib/i18n/config.ts", "lib/i18n/index.ts"];
+
 /// Collects the `config` findings: base files and folders, the pages marker
 /// of `app/sitemap.ts`, the root redirect, the persisted keys of
 /// `aarshi.toml` and the options checked against the project.
@@ -57,6 +66,9 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
         }
     }
     for file in &missing {
+        if SELF_REPORTED.contains(file) {
+            continue;
+        }
         findings.push(Finding {
             dimension: Dimension::Config,
             rule: "config.file-missing",
