@@ -9,17 +9,15 @@ use inquire::{MultiSelect, Select, Text};
 
 use crate::{
     add,
-    config::{self, Config, PACKAGE_MANAGERS, PROJECT_CONFIG_FILE, SUPPORTED_LANGUAGES},
+    config::{
+        self, Config, DEFAULT_SITE_URL, ICONS_LUCIDE, ICONS_NONE, PACKAGE_MANAGERS,
+        PROJECT_CONFIG_FILE, SUPPORTED_LANGUAGES, UI_BASE, UI_SHADCN, validate_icons, validate_site_url, validate_ui,
+    },
     output, project, templates,
 };
 
-const DEFAULT_SITE_URL: &str = "http://localhost:3000";
 const AGENT_FEEDBACK: &str = "Agent feedback";
 const CACHE_COMPONENTS: &str = "Cache Components";
-const UI_SHADCN: &str = "shadcn";
-const UI_BASE: &str = "base-ui";
-const ICONS_LUCIDE: &str = "lucide";
-const ICONS_NONE: &str = "none";
 /// Class helper, used by the switcher, the icons and the custom components.
 const CN_PACKAGE: &str = "@sglara/cn";
 
@@ -101,8 +99,12 @@ pub fn run(options: SetupOptions) -> Result<()> {
     let config = Config {
         languages,
         package_manager: manager,
+        ui,
+        icons,
+        cache_components,
+        site_url,
     };
-    generate(&root, &config, &site_url, cache_components)?;
+    generate(&root, &config)?;
     println!("{}", output::success(&format!("project `{dir}` created")));
     Ok(())
 }
@@ -174,9 +176,7 @@ fn select_package_manager(default: &str) -> Result<String> {
 fn select_ui(options: &SetupOptions) -> Result<String> {
     if let Some(ui) = &options.ui {
         let ui = ui.to_ascii_lowercase();
-        if ui != UI_SHADCN && ui != UI_BASE {
-            bail!("unknown UI `{ui}` (expected `shadcn` or `base-ui`)");
-        }
+        validate_ui(&ui)?;
         return Ok(ui);
     }
     if options.yes {
@@ -198,9 +198,7 @@ fn select_ui(options: &SetupOptions) -> Result<String> {
 fn select_icons(options: &SetupOptions) -> Result<String> {
     if let Some(icons) = &options.icons {
         let icons = icons.to_ascii_lowercase();
-        if icons != ICONS_LUCIDE && icons != ICONS_NONE {
-            bail!("unknown icon library `{icons}` (expected `lucide` or `none`)");
-        }
+        validate_icons(&icons)?;
         return Ok(icons);
     }
     if options.yes {
@@ -356,14 +354,12 @@ fn target_root(dir: &str) -> Result<PathBuf> {
 
 fn normalize_site_url(url: &str) -> Result<String> {
     let trimmed = url.trim().trim_end_matches('/');
-    if !(trimmed.starts_with("http://") || trimmed.starts_with("https://")) {
-        bail!("site URL must start with http:// or https://");
-    }
+    validate_site_url(trimmed)?;
     Ok(trimmed.to_string())
 }
 
 /// Writes the i18n structure into a project created by create-next-app.
-fn generate(root: &Path, config: &Config, site_url: &str, cache_components: bool) -> Result<()> {
+fn generate(root: &Path, config: &Config) -> Result<()> {
     let languages = &config.languages;
     let default = &languages[0];
 
@@ -386,7 +382,7 @@ fn generate(root: &Path, config: &Config, site_url: &str, cache_components: bool
             config.languages[0]
         );
         let content = content.replace("const nextConfig: NextConfig = {", &redirect);
-        if cache_components {
+        if config.cache_components {
             return Ok(content);
         }
         if !content.contains("cacheComponents: true") {
@@ -409,7 +405,7 @@ fn generate(root: &Path, config: &Config, site_url: &str, cache_components: bool
         project::create_file(&env_file, "NEXT_TELEMETRY_DISABLED=1\n")?;
     }
     project::create_file(&root.join(PROJECT_CONFIG_FILE), &config.to_project_file())?;
-    project::create_file(&root.join("lib/site.ts"), &templates::site(site_url))?;
+    project::create_file(&root.join("lib/site.ts"), &templates::site(&config.site_url))?;
     project::create_file(
         &root.join("lib/i18n/config.ts"),
         &templates::i18n_config(languages),

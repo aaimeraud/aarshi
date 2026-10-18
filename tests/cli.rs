@@ -499,6 +499,89 @@ fn add_lang_creates_dictionary_and_updates_config_without_new_routes() {
 }
 
 #[test]
+fn setup_writes_the_extended_config_keys() {
+    let sandbox = Sandbox::new("setup-config-keys");
+    let project = sandbox.setup("site", &["--cache-components"]);
+
+    let config = read(&project.join("aarshi.toml"));
+    assert!(config.contains("languages = [\"fr\", \"en\"]"), "{config}");
+    assert!(config.contains("package_manager = \"npm\""), "{config}");
+    assert!(config.contains("ui = \"base-ui\""), "{config}");
+    assert!(config.contains("icons = \"lucide\""), "{config}");
+    assert!(config.contains("cache_components = true"), "{config}");
+    assert!(
+        config.contains("site_url = \"https://example.com\""),
+        "the trailing slash is trimmed: {config}"
+    );
+
+    let off = sandbox.setup("plain", &[]);
+    let config = read(&off.join("aarshi.toml"));
+    assert!(config.contains("cache_components = false"), "{config}");
+}
+
+#[test]
+fn add_lang_preserves_the_extended_config_keys() {
+    let sandbox = Sandbox::new("add-lang-preserve");
+    let project = sandbox.setup("site", &["--cache-components"]);
+
+    let output = sandbox.run(&project, &["add-lang", "de"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+
+    let config = read(&project.join("aarshi.toml"));
+    assert!(config.contains("languages = [\"fr\", \"en\", \"de\"]"), "{config}");
+    assert!(config.contains("package_manager = \"npm\""), "{config}");
+    assert!(config.contains("ui = \"base-ui\""), "{config}");
+    assert!(config.contains("icons = \"lucide\""), "{config}");
+    assert!(config.contains("cache_components = true"), "{config}");
+    assert!(config.contains("site_url = \"https://example.com\""), "{config}");
+}
+
+#[test]
+fn extended_config_parses_an_old_format_file() {
+    let sandbox = Sandbox::new("config-old-format");
+    let project = sandbox.setup("site", &[]);
+    // A project generated before the extension only carries `languages`.
+    fs::write(project.join("aarshi.toml"), "languages = [\"fr\", \"en\"]\n").unwrap();
+
+    let output = sandbox.run(&project, &["add-lang", "de"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        read(&project.join("aarshi.toml")).contains("\"de\""),
+        "the file was rewritten"
+    );
+}
+
+#[test]
+fn extended_config_still_rejects_unknown_keys() {
+    let sandbox = Sandbox::new("config-unknown-keys");
+    let project = sandbox.setup("site", &[]);
+    fs::write(
+        project.join("aarshi.toml"),
+        "languages = [\"fr\", \"en\"]\ntemplates = \"custom\"\n",
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["add-lang", "de"]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("invalid config"),);
+}
+
+#[test]
+fn extended_config_validates_the_new_keys() {
+    let sandbox = Sandbox::new("config-invalid-keys");
+    let project = sandbox.setup("site", &[]);
+    fs::write(
+        project.join("aarshi.toml"),
+        "languages = [\"fr\", \"en\"]\nui = \"chakra\"\n",
+    )
+    .unwrap();
+
+    let output = sandbox.run(&project, &["add-lang", "de"]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("unknown UI"),);
+}
+
+#[test]
 fn add_lang_rejects_a_language_already_in_the_project() {
     let sandbox = Sandbox::new("add-lang-twice");
     let project = sandbox.setup("site", &[]);

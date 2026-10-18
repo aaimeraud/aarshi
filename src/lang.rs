@@ -63,10 +63,8 @@ pub fn run(code: Option<String>) -> Result<()> {
         root.join("lib/i18n/index.ts"),
         templates::i18n_index(&languages),
     )?;
-    let project_config = Config {
-        languages,
-        package_manager: config.package_manager,
-    };
+    let mut project_config = config;
+    project_config.languages = languages;
     std::fs::write(
         root.join(PROJECT_CONFIG_FILE),
         project_config.to_project_file(),
