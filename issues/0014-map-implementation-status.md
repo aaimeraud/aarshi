@@ -26,6 +26,16 @@ parent: 0005-map-status.md
 <!-- une ligne par ticket fermé, avec son gist et le lien vers le détail -->
 
 - **Hérite de la spec** : [carte `status`](0005-map-status.md) et ses tickets fermés — [invariants i18n](0006-grilling-invariants-i18n.md), [invariants pages/routes/sections/composants](0007-grilling-invariants-pages.md), [invariants config/outillage](0008-grilling-invariants-config.md), [recherche doctor/status](0009-research-doctor-cli.md), [surface et absorption de `check`](0010-grilling-surface-status.md), [contrat de sortie](0011-grilling-contrat-sortie.md), [livraison de la spec](0012-grilling-livraison-spec.md), [dimensions canoniques](0013-grilling-dimensions.md).
+- [Amont : écriture étendue d'`aarshi.toml`](0022-amont-options-config.md) : `setup` écrit les six clés, `add-lang` les préserve, le schéma étendu reste tolérant à leur absence — [résolution de 0015](0015-grilling-perimetre-implementation.md), fermé.
+- [Socle et tracer](0023-socle-tracer-i18n.md) : surface `status` (alias visible `check`, `--dimension`, `--errors-only`), moteur sous `src/status/` (modèle du moteur dans [0016](0016-grilling-moteur-status.md), rendu et wording dans [0017](0017-grilling-rendu-json.md), plomberie des codes dans [0018](0018-grilling-codes-sortie-alias-check.md) — les trois fermés), rendu humain, codes `0`/`1`/`2`, `--json` v1, quatre règles i18n du tracer.
+- [Dimension `config`](0024-dimension-config.md) : fichiers et dossiers de base, marqueurs, redirect, options persistées contrôlées, import cassé d'un fichier de base.
+- [Dimension `i18n` complète](0025-dimension-i18n.md) : `defaultLocale`, `direction`, `index.ts`, doublon, clé en trop, dictionnaire orphelin.
+- [Dimension `pages` + primitives partagées](0026-dimension-pages.md) : vues ↔ routes (deux sens), sitemap, clé `"<page>.title"`, import de vue ; primitives (scan récursif des routes, extraction d'imports, sitemap, inventaire vues/sections) et conventions anti-double-rapport posées en addendum de [0016](0016-grilling-moteur-status.md).
+- [Dimension `sections`](0027-dimension-sections.md) : import pendant, clés, marqueurs de vue, orphelines, imports cassés.
+- [Dimension `components`](0028-dimension-components.md) : icônes `.svg` ↔ `.tsx`, imports cassés dans `components/` ; résolution des imports connus rangée dans la dimension de l'objet fautif (déjà couverte par 0024–0027).
+- [Dimension `dependencies`](0029-dimension-dependencies.md) : paquets non déclarés (imports « bare » des fichiers connus), lockfile ↔ `package_manager`, `node_modules` absent.
+- [Recette transverse](0030-recette-transverse.md) : matrice des 36 règles figée dans [0019](0019-grilling-verification-status.md) (fermé), règle « un constat par objet » (fichiers i18n auto-rapportés exclus de `config.file-missing`), invariants de sortie figés par tests.
+- [Doc de `status`](0031-doc-status.md) : README et CONVENTIONS mise à jour EN + FR en parité, catalogue des invariants par dimension — [résolution de 0021](0021-grilling-doc-status.md), fermé.
 
 ## Not yet specified
 
