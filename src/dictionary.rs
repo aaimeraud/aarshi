@@ -40,8 +40,6 @@ pub fn is_empty(entry: &Entry) -> bool {
 }
 
 /// Page names are the folders of `views/` that hold a `<name>.view.tsx` file.
-/// Used again by the `pages` checks of `status`, arriving after the tracer.
-#[allow(dead_code)]
 pub fn pages(root: &Path) -> Result<Vec<String>> {
     let views = root.join("views");
     let mut pages = Vec::new();

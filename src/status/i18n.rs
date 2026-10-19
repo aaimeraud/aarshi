@@ -509,12 +509,5 @@ fn collect_orphans(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
 
 /// Formats a language list as a bare array, e.g. `["fr", "de"]`.
 fn quoted(languages: &[String]) -> String {
-    format!(
-        "[{}]",
-        languages
-            .iter()
-            .map(|l| format!("\"{l}\""))
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
+    format!("[{}]", crate::templates::quoted_list(languages))
 }

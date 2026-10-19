@@ -1,7 +1,9 @@
-use std::{fs, path::Path};
+use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
+
+use crate::project;
 
 pub const PROJECT_CONFIG_FILE: &str = "aarshi.toml";
 pub const PACKAGE_MANAGERS: &[&str] = &["npm", "pnpm", "yarn", "bun"];
@@ -152,6 +154,13 @@ pub fn validate_site_url(url: &str) -> Result<()> {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         bail!("site URL must start with http:// or https://");
     }
+    // The URL is written into `aarshi.toml` and `lib/site.ts`, so quotes and spaces would break both.
+    if url
+        .chars()
+        .any(|c| c.is_whitespace() || matches!(c, '"' | '\'' | '\\' | '`'))
+    {
+        bail!("site URL must not contain spaces or quotes");
+    }
     Ok(())
 }
 
@@ -182,7 +191,6 @@ fn user_config_path() -> Option<std::path::PathBuf> {
 }
 
 fn read_file(path: &Path) -> Result<FileConfig> {
-    let content =
-        fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
+    let content = project::read_file(path)?;
     toml::from_str(&content).with_context(|| format!("invalid config in {}", path.display()))
 }

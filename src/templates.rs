@@ -432,7 +432,8 @@ export const __COMPONENT__Section = ({ locale }: { locale: Locale }) => {
     )
 }
 
-fn quoted_list(items: &[String]) -> String {
+/// Quoted items separated by commas, e.g. `"fr", "de"`; the caller adds the brackets.
+pub fn quoted_list(items: &[String]) -> String {
     items
         .iter()
         .map(|i| format!("\"{i}\""))

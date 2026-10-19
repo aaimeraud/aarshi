@@ -922,6 +922,23 @@ fn setup_puts_the_default_language_at_root_and_others_under_their_prefix() {
 }
 
 #[test]
+fn setup_rejects_a_site_url_that_would_break_the_generated_files() {
+    let sandbox = Sandbox::new("setup-url-quote");
+    let output = sandbox.run(
+        &sandbox.root,
+        &[
+            "setup",
+            "site",
+            "--site-url",
+            "https://example.com/\"x",
+            "--yes",
+        ],
+    );
+    assert!(!output.status.success());
+    assert!(!sandbox.root.join("site").exists());
+}
+
+#[test]
 fn setup_rejects_an_existing_folder() {
     let sandbox = Sandbox::new("setup-existing");
     fs::create_dir_all(sandbox.root.join("site")).unwrap();

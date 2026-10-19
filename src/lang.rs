@@ -50,11 +50,11 @@ pub fn run(code: Option<String>) -> Result<()> {
         &dictionary::file(&root, &code),
         &templates::dictionary(&code, &default),
     )?;
-    for key in &keys {
-        project::update_file(&dictionary::file(&root, &code), |content| {
-            project::insert_before_marker(content, MESSAGES_MARKER, &format!("\"{key}\": \"\","))
-        })?;
-    }
+    project::update_file(&dictionary::file(&root, &code), |content| {
+        keys.iter().try_fold(content.to_string(), |content, key| {
+            project::insert_before_marker(&content, MESSAGES_MARKER, &format!("\"{key}\": \"\","))
+        })
+    })?;
     std::fs::write(
         root.join("lib/i18n/config.ts"),
         templates::i18n_config(&languages),
