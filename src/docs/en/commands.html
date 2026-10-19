@@ -1,0 +1,71 @@
+<h1>Commands</h1>
+<p class="lead">Every command asks for the values it needs when they are not given as arguments. Flags let you skip the questions, and <code>--yes</code> accepts the defaults.</p>
+
+<h2>aarshi setup</h2>
+<p>Creates a Next.js project in a new folder. <code>aarshi setup .</code> uses the current folder instead.</p>
+<p>It asks for the languages (checkboxes among fr, en, es, ja, ko and de), the default language, the site URL, the package manager, the UI components and the icons. Each question has a flag:</p>
+<table>
+  <thead><tr><th>Flag</th><th>Skips the question about</th></tr></thead>
+  <tbody>
+    <tr><td><code>--languages fr,en,ja</code></td><td>the languages</td></tr>
+    <tr><td><code>--default-language ja</code></td><td>the default language</td></tr>
+    <tr><td><code>--site-url https://example.com</code></td><td>the site URL</td></tr>
+    <tr><td><code>--npm</code>, <code>--pnpm</code>, <code>--yarn</code>, <code>--bun</code></td><td>the package manager</td></tr>
+    <tr><td><code>--ui shadcn</code> or <code>--ui base-ui</code></td><td>the UI components</td></tr>
+    <tr><td><code>--icons lucide</code> or <code>--icons none</code></td><td>the icon library</td></tr>
+    <tr><td><code>--agent-feedback</code>, <code>--cache-components</code></td><td>the options (off unless given)</td></tr>
+    <tr><td><code>--yes</code>, <code>-y</code></td><td>every question: the defaults are used</td></tr>
+  </tbody>
+</table>
+<p>The answers are saved in <a href="config.html"><code>aarshi.toml</code></a>.</p>
+
+<h2 id="add">aarshi add, step by step</h2>
+<p>Type <code>aarshi add</code> with no argument, inside the project folder. You do not need to remember any flag: aarshi asks each question in turn.</p>
+<ol class="steps">
+  <li><strong>What do you want to add?</strong> A menu offers <em>Section</em>, <em>Page</em> or <em>Custom component</em>. Move with the arrow keys and press Enter.</li>
+  <li><strong>If you chose Section</strong>, aarshi asks for the section name. Only lowercase letters, digits and dashes are allowed: an invalid name is refused and you are asked again. Then it asks <strong>in which page</strong> the section goes. The menu lists the pages found in <code>views/</code>; its first entry, <em>+ Create a new page</em>, creates a page instead.</li>
+  <li><strong>If you chose Page</strong>, aarshi asks for the page name, then creates its view, its route and its sitemap entry.</li>
+  <li><strong>If you chose Custom component</strong>, aarshi asks for the name and creates a starter file in <code>components/custom/</code>.</li>
+  <li>aarshi prints a success message. The new files are already connected to the rest of the project; only the texts remain to write, in the dictionaries.</li>
+</ol>
+<p>For a section, aarshi does three things: it creates <code>views/&lt;page&gt;/sections/&lt;section&gt;.tsx</code>, it adds the section to the view, and it adds a title key to every dictionary (for example <code>"about.team.title"</code>).</p>
+<div class="card tip">
+  <strong>Same result, no menu.</strong> The flags skip the menu: <code>aarshi add -s team about</code> adds a section, <code>aarshi add -p about</code> a page, <code>aarshi add -c badge</code> a component. Leave a name out and aarshi asks for it.
+</div>
+
+<table>
+  <thead><tr><th>Command</th><th>What it adds</th><th>Files it creates or changes</th></tr></thead>
+  <tbody>
+    <tr><td><code>aarshi add -s &lt;section&gt; &lt;page&gt;</code></td><td>a section in a page</td><td><code>views/&lt;page&gt;/sections/</code>, the view, the dictionaries</td></tr>
+    <tr><td><code>aarshi add -p &lt;page&gt;</code></td><td>a page</td><td><code>views/&lt;page&gt;/</code>, <code>app/[locale]/&lt;page&gt;/</code>, <code>app/sitemap.ts</code>, the dictionaries</td></tr>
+    <tr><td><code>aarshi add -c &lt;name&gt;</code></td><td>a custom component</td><td><code>components/custom/&lt;name&gt;.tsx</code></td></tr>
+  </tbody>
+</table>
+<p>If the page given to <code>add -s</code> does not exist, aarshi reports it and asks whether to create it (y/n).</p>
+
+<h2 id="add-lang">aarshi add-lang</h2>
+<pre><code>aarshi add-lang de</code></pre>
+<p>Adds a language to an existing project. Without a code, aarshi asks for it. It creates the dictionary <code>lib/i18n/dictionaries/de.ts</code> with empty values, and updates the language list of <code>lib/i18n/config.ts</code>, <code>lib/i18n/index.ts</code> and <a href="config.html"><code>aarshi.toml</code></a>. Fill in the empty values: until then, <a href="status.html">aarshi status</a> reports them as <code>todo</code>.</p>
+
+<h2 id="icons">aarshi icons</h2>
+<pre><code>aarshi icons
+aarshi icons --all</code></pre>
+<p>Put <code>.svg</code> files in <code>components/icons/</code>, then run the command. It lists them with checkboxes, and each selected file becomes a React component next to it. <code>--all</code> converts every file without asking. An existing component is never overwritten.</p>
+<p>Attributes become their React names (<code>class</code> becomes <code>className</code>), inline styles become objects, and simple values become Tailwind classes: <code>width</code> and <code>height</code> become <code>size-*</code>, <code>fill="currentColor"</code> becomes <code>fill-current</code>.</p>
+
+<h2 id="docs">aarshi docs</h2>
+<pre><code>aarshi docs</code></pre>
+<p>Opens this documentation in your browser. The pages are included in the aarshi program and written to a temporary folder each time, so they always match your version of aarshi. The page opens in French when your system language starts with <code>fr</code>, in English otherwise.</p>
+
+<h2 id="remove">aarshi remove and aarshi restore</h2>
+<pre><code>aarshi remove
+aarshi remove --all --yes
+aarshi restore</code></pre>
+<p><code>aarshi remove</code> lists what aarshi added to the project (pages, sections and custom components) and removes the ones you pick, with checkboxes. <code>--all</code> selects everything, and <code>--yes</code> skips the confirmation. The home page is never offered: <code>/</code> needs it. A section of a removed page goes with the page.</p>
+<p>Before removing anything, aarshi copies every file it is about to change into <code>.aarshi/removed/</code>. <code>aarshi restore</code> copies them back and forgets the removal, so the project files return to their state before <code>remove</code>. Only the last removal can be restored. Files you changed since the removal are overwritten.</p>
+<div class="card">
+  <strong>Keep <code>.aarshi/</code> out of git.</strong> aarshi adds it to <code>.gitignore</code> when the project has one.
+</div>
+
+<h2>aarshi status</h2>
+<p>Reads the project and reports what is missing or wrong. It changes nothing. See <a href="status.html">Checking a project</a>.</p>

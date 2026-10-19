@@ -1,0 +1,59 @@
+<h1>Documentation d'aarshi</h1>
+<p class="lead">aarshi crée pour vous un site Next.js multilingue, puis vous aide à le garder en ordre.</p>
+
+<h2>Qu'est-ce qu'aarshi ?</h2>
+<p>Un site Next.js, ce sont beaucoup de fichiers : des pages, des textes dans plusieurs langues, des composants, un plan du site pour les moteurs de recherche. aarshi écrit les fichiers de départ et vous donne de petites commandes pour ajouter des pages, des sections, des langues et des icônes, sans copier les fichiers à la main.</p>
+<p>Pas besoin de connaître Next.js pour commencer. Les autres pages de cette documentation sont listées dans le menu de gauche :</p>
+<dl>
+  <dt>Le fichier aarshi.toml</dt>
+  <dd>Ce que contient le fichier de réglages d'un projet, et les valeurs que vous pouvez changer.</dd>
+  <dt>Commandes</dt>
+  <dd>Chaque commande, avec <code>aarshi add</code> expliqué pas à pas.</dd>
+  <dt>Exemple pas à pas</dt>
+  <dd>Un tutoriel qui construit une page du début à la fin, en utilisant presque toutes les commandes.</dd>
+  <dt>Vérifier un projet</dt>
+  <dd><code>aarshi status</code> : ce qu'il signale, ses codes de sortie et ses options.</dd>
+  <dt>Dépannage</dt>
+  <dd>Les messages que vous rencontrerez le plus souvent, et quoi faire.</dd>
+</dl>
+
+<h2>Avant de commencer</h2>
+<ul>
+  <li><strong>Node.js</strong>, l'environnement d'exécution sur lequel tourne Next.js.</li>
+  <li>Un <strong>gestionnaire de paquets</strong> : npm (installé avec Node.js), pnpm, yarn ou bun.</li>
+  <li>Une <strong>connexion internet</strong> pendant <code>setup</code>, car le projet et ses dépendances sont téléchargés.</li>
+  <li>Un terminal. Chaque commande de cette documentation s'y tape.</li>
+</ul>
+
+<h2>Installer aarshi</h2>
+<p>aarshi est écrit en Rust et n'est pas encore publié. Pour l'instant, compilez-le depuis le dépôt :</p>
+<pre><code>cargo install --path .</code></pre>
+<p>Vérifiez ensuite que la commande répond :</p>
+<pre><code>aarshi --version</code></pre>
+
+<h2>Créer votre premier site</h2>
+<ol class="steps">
+  <li>Lancez <code>aarshi setup mon-site</code>. aarshi pose des questions sur les langues, la langue par défaut, l'URL du site, le gestionnaire de paquets, les composants d'interface et les icônes. Appuyez sur Entrée pour garder la réponse proposée.</li>
+  <li>Entrez dans le dossier : <code>cd mon-site</code>.</li>
+  <li>Démarrez le serveur de développement avec votre gestionnaire de paquets, par exemple <code>npm run dev</code>.</li>
+  <li>Ouvrez <code>http://localhost:3000</code> dans votre navigateur. Le site vous redirige vers sa langue par défaut.</li>
+</ol>
+<div class="card tip">
+  <strong>Astuce.</strong> Ajoutez <code>--yes</code> pour accepter toutes les valeurs par défaut sans répondre aux questions : <code>aarshi setup mon-site --yes</code>. Le nom du dossier reste obligatoire.
+</div>
+
+<h2>Les mots que vous rencontrerez</h2>
+<dl>
+  <dt>Langue et préfixe</dt>
+  <dd>Chaque langue du site a un préfixe dans l'adresse : <code>/fr</code> pour le français, <code>/en</code> pour l'anglais. La langue par défaut est celle servie à <code>/</code>.</dd>
+  <dt>Dictionnaire</dt>
+  <dd>Un fichier qui contient tous les textes du site dans une langue, par exemple <code>lib/i18n/dictionaries/fr.ts</code>. Chaque langue en a un, avec les mêmes clés : une traduction manquante se voit.</dd>
+  <dt>Vue</dt>
+  <dd>Ce qu'affiche une page, écrit dans <code>views/&lt;page&gt;/</code>. Une vue est assemblée à partir de sections.</dd>
+  <dt>Section</dt>
+  <dd>Un bloc d'une page, comme une bannière d'accueil, une liste de projets ou un pied de page. Chaque section est un fichier de <code>views/&lt;page&gt;/sections/</code>.</dd>
+  <dt>Route</dt>
+  <dd>Le fichier qui rend une page accessible à une adresse, par exemple <code>app/[locale]/a-propos/page.tsx</code> pour <code>/a-propos</code>. Une route affiche une vue.</dd>
+  <dt>Composant</dt>
+  <dd>Un morceau d'interface réutilisable, comme un bouton. Vos propres composants vont dans <code>components/custom/</code>, les icônes converties dans <code>components/icons/</code>.</dd>
+</dl>

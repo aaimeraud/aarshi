@@ -1,0 +1,64 @@
+<h1>Le fichier aarshi.toml</h1>
+<p class="lead">Chaque projet aarshi a un fichier <code>aarshi.toml</code> à sa racine. Il garde les choix faits pendant <code>setup</code>, pour que chaque commande suivante sache comment le projet est construit.</p>
+
+<h2>À quoi il ressemble</h2>
+<p>Après <code>aarshi setup mon-site --languages fr,en --default-language fr --yes</code>, le fichier contient :</p>
+<pre><code>languages = ["fr", "en"]
+package_manager = "npm"
+ui = "shadcn"
+icons = "lucide"
+cache_components = false
+site_url = "http://localhost:3000"</code></pre>
+
+<h2>Les clés</h2>
+<table>
+  <thead>
+    <tr><th>Clé</th><th>Valeurs</th><th>Ce qu'elle contrôle</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>languages</code></td>
+      <td>Une liste de codes, par exemple <code>["fr", "en"]</code></td>
+      <td>Les langues du site. La <strong>première</strong> est la langue par défaut : elle est servie à <code>/</code>, et son dictionnaire sert de référence pour typer les autres.</td>
+    </tr>
+    <tr>
+      <td><code>package_manager</code></td>
+      <td><code>npm</code>, <code>pnpm</code>, <code>yarn</code>, <code>bun</code></td>
+      <td>L'outil qui installe les dépendances, et le fichier de verrouillage attendu par <code>aarshi status</code>.</td>
+    </tr>
+    <tr>
+      <td><code>ui</code></td>
+      <td><code>shadcn</code>, <code>base-ui</code></td>
+      <td>shadcn (stylé, construit sur Base UI), ou Base UI seul.</td>
+    </tr>
+    <tr>
+      <td><code>icons</code></td>
+      <td><code>lucide</code>, <code>none</code></td>
+      <td>La bibliothèque d'icônes (<code>lucide-react</code>), ou aucune.</td>
+    </tr>
+    <tr>
+      <td><code>cache_components</code></td>
+      <td><code>true</code>, <code>false</code></td>
+      <td>Active la fonctionnalité Cache Components de Next.js. Désactivée par défaut.</td>
+    </tr>
+    <tr>
+      <td><code>site_url</code></td>
+      <td>Une URL complète, par exemple <code>https://example.com</code></td>
+      <td>L'adresse publique du site. Elle est recopiée dans <code>lib/site.ts</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Les règles</h2>
+<ul>
+  <li><strong>Chaque clé est facultative.</strong> Une clé absente prend sa valeur par défaut : <code>fr</code> et <code>en</code>, npm, shadcn, lucide, Cache Components désactivés, <code>http://localhost:3000</code>.</li>
+  <li><strong>Une clé inconnue arrête aarshi</strong> avec une erreur. Vérifiez l'orthographe si cela arrive.</li>
+  <li>La configuration utilisateur, <code>~/.config/aarshi/config.toml</code>, fixe les valeurs par défaut des <em>nouveaux</em> projets. La clé <code>languages</code> d'<code>aarshi.toml</code> remplace la liste de l'utilisateur pour ce projet.</li>
+  <li>Si une clé de la liste ci-dessus manque, <code>aarshi status</code> signale un <code>todo</code> (<code>config.project-file-incomplete</code>). Rien n'est cassé, mais le fichier n'est pas complet.</li>
+</ul>
+
+<h2>Faut-il le modifier à la main ?</h2>
+<p>Modifier <code>site_url</code> ou <code>cache_components</code> à la main ne pose pas de problème. Pour les langues, préférez <code>aarshi add-lang</code> : la commande crée aussi le dictionnaire, les fichiers de configuration et la liste d'<code>aarshi.toml</code>. Ajouter un code à la liste à la main ne crée pas son dictionnaire.</p>
+<div class="card must">
+  <strong>Gardez ce fichier dans votre projet.</strong> Versionnez-le avec le reste du code. Chaque commande d'aarshi le lit, et sans lui aarshi ne reconnaît pas le dossier comme un projet.
+</div>

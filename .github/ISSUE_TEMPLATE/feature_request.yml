@@ -1,0 +1,54 @@
+name: Feature request
+description: An idea or a change that would make aarshi more useful.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Start from the problem: what were you trying to do, and what did it cost you to do it by hand?
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard, slow or impossible today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: A command, flag, file or behaviour. A rough idea is fine.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use today, or other designs you thought about.
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Area
+      options:
+        - setup
+        - add
+        - add-lang
+        - icons
+        - status
+        - docs
+        - Not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and found no duplicate.
+          required: true

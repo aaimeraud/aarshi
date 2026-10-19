@@ -1,0 +1,64 @@
+<h1>The aarshi.toml file</h1>
+<p class="lead">Every aarshi project has an <code>aarshi.toml</code> file at its root. It stores the choices made during <code>setup</code>, so every later command knows how the project is built.</p>
+
+<h2>What it looks like</h2>
+<p>After <code>aarshi setup my-site --languages fr,en --default-language fr --yes</code>, the file contains:</p>
+<pre><code>languages = ["fr", "en"]
+package_manager = "npm"
+ui = "shadcn"
+icons = "lucide"
+cache_components = false
+site_url = "http://localhost:3000"</code></pre>
+
+<h2>The keys</h2>
+<table>
+  <thead>
+    <tr><th>Key</th><th>Values</th><th>What it controls</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>languages</code></td>
+      <td>A list of codes, e.g. <code>["fr", "en"]</code></td>
+      <td>The languages of the site. The <strong>first</strong> one is the default language: it is served at <code>/</code> and its dictionary is the reference for the types of the others.</td>
+    </tr>
+    <tr>
+      <td><code>package_manager</code></td>
+      <td><code>npm</code>, <code>pnpm</code>, <code>yarn</code>, <code>bun</code></td>
+      <td>The tool used to install the dependencies, and the lockfile <code>aarshi status</code> expects.</td>
+    </tr>
+    <tr>
+      <td><code>ui</code></td>
+      <td><code>shadcn</code>, <code>base-ui</code></td>
+      <td>shadcn (styled, built on Base UI), or Base UI alone.</td>
+    </tr>
+    <tr>
+      <td><code>icons</code></td>
+      <td><code>lucide</code>, <code>none</code></td>
+      <td>The icon library (<code>lucide-react</code>), or none.</td>
+    </tr>
+    <tr>
+      <td><code>cache_components</code></td>
+      <td><code>true</code>, <code>false</code></td>
+      <td>Enables the Cache Components feature of Next.js. Off by default.</td>
+    </tr>
+    <tr>
+      <td><code>site_url</code></td>
+      <td>A full URL, e.g. <code>https://example.com</code></td>
+      <td>The public address of the site. It is copied to <code>lib/site.ts</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Rules</h2>
+<ul>
+  <li><strong>Every key is optional.</strong> A missing key takes its default value: <code>fr</code> and <code>en</code>, npm, shadcn, lucide, Cache Components off, <code>http://localhost:3000</code>.</li>
+  <li><strong>An unknown key stops aarshi</strong> with an error. Check the spelling if that happens.</li>
+  <li>The user configuration, <code>~/.config/aarshi/config.toml</code>, sets the defaults for <em>new</em> projects. The <code>languages</code> of <code>aarshi.toml</code> replace the user list for this project.</li>
+  <li>If a key of the list above is missing, <code>aarshi status</code> reports a <code>todo</code> (<code>config.project-file-incomplete</code>). Nothing is broken, but the file is not complete.</li>
+</ul>
+
+<h2>Should you edit it by hand?</h2>
+<p>Changing <code>site_url</code> or <code>cache_components</code> by hand is fine. For languages, prefer <code>aarshi add-lang</code>: the command also creates the dictionary, the config files and the list in <code>aarshi.toml</code>. Adding a code to the list by hand does not create its dictionary.</p>
+<div class="card must">
+  <strong>Keep the file in your project.</strong> Commit it with the rest of the code. Every aarshi command reads it, and without it aarshi does not recognise the folder as a project.
+</div>

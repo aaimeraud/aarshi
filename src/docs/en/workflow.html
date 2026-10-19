@@ -1,0 +1,76 @@
+<h1>Example workflow</h1>
+<p class="lead">In this tutorial you build a small presentation site, then add an <em>About</em> page to it, with a team section, a custom component, an icon and a German translation. Along the way you use almost every aarshi command.</p>
+
+<div class="card must">
+  <strong>You need:</strong> Node.js, a package manager, and a terminal in a folder where you want the project. Each step says what it does and which files change.
+</div>
+
+<h2>1. Create the project</h2>
+<pre><code>aarshi setup portfolio --languages fr,en --default-language fr --yes
+cd portfolio</code></pre>
+<p>aarshi creates the Next.js project, installs the dependencies and writes <code>aarshi.toml</code>. French is the default language: <code>/</code> redirects to <code>/fr</code>.</p>
+
+<h2>2. Add a page</h2>
+<pre><code>aarshi add -p about</code></pre>
+<p>aarshi creates three things for the page:</p>
+<ul>
+  <li><code>views/about/about.view.tsx</code>, the view that shows the page;</li>
+  <li><code>app/[locale]/about/page.tsx</code>, the route, which serves <code>/fr/about</code> and <code>/en/about</code>;</li>
+  <li>an entry in <code>app/sitemap.ts</code>, so search engines find it.</li>
+</ul>
+<p>It also adds the key <code>"about.title"</code> to <code>lib/i18n/dictionaries/fr.ts</code> and <code>en.ts</code>, with an empty value. Fill them in:</p>
+<pre><code>// lib/i18n/dictionaries/fr.ts
+"about.title": "À propos",
+
+// lib/i18n/dictionaries/en.ts
+"about.title": "About",</code></pre>
+
+<h2>3. Add a section with a menu</h2>
+<p>A section is a block of the page. Type the command without any argument:</p>
+<pre><code>aarshi add</code></pre>
+<ol class="steps">
+  <li>Choose <em>Section</em> in the first menu.</li>
+  <li>Type the name <code>team</code>.</li>
+  <li>In the page menu, choose <code>about</code>.</li>
+</ol>
+<p>aarshi creates <code>views/about/sections/team.tsx</code>, adds it to the view, and adds <code>"about.team.title"</code> to both dictionaries. Fill it in as before, for example <code>"Notre équipe"</code> and <code>"Our team"</code>.</p>
+<div class="card tip">
+  <strong>Without the menu.</strong> The same section with a flag: <code>aarshi add -s gallery about</code>.
+</div>
+
+<h2>4. Add a custom component</h2>
+<pre><code>aarshi add -c member-card</code></pre>
+<p>This creates <code>components/custom/member-card.tsx</code>, a starter component you can use in the section. The component is yours: aarshi never changes it afterwards.</p>
+
+<h2>5. Convert an icon</h2>
+<p>Save an icon exported from your design tool as <code>components/icons/logo.svg</code>, then run:</p>
+<pre><code>aarshi icons --all</code></pre>
+<p>aarshi writes <code>components/icons/logo.tsx</code>, a React component with the same drawing. Import it like any component.</p>
+
+<h2>6. Add a German translation</h2>
+<pre><code>aarshi add-lang de</code></pre>
+<p>aarshi creates <code>lib/i18n/dictionaries/de.ts</code> with every key of the default dictionary, all empty, and adds <code>de</code> to the languages. The site is now also served under <code>/de</code>, but its texts are still empty. Fill them in: <code>"about.title": "Über uns",</code>, and so on for each key.</p>
+
+<h2>7. Check the project</h2>
+<pre><code>aarshi status</code></pre>
+<p>Until every value is filled, <code>aarshi status</code> lists the empty ones as <code>todo</code> in the <code>i18n</code> section. Those are not errors: the exit code stays <code>0</code>. Once all the values are filled, the report ends with <code>✓ project is conformant</code>.</p>
+<p>If you want to see only what matters, run <code>aarshi status --errors-only</code>.</p>
+
+<h2>8. Look at the result</h2>
+<pre><code>npm run dev</code></pre>
+<p>Open <code>http://localhost:3000/fr/about</code>, then <code>/en/about</code> and <code>/de/about</code>. The language switcher in the header changes the language of the current page.</p>
+
+<h2>What you did</h2>
+<table>
+  <thead><tr><th>Step</th><th>Command</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><code>setup</code></td><td>project, <code>aarshi.toml</code></td></tr>
+    <tr><td>2</td><td><code>add -p</code></td><td>page, route, sitemap entry, keys</td></tr>
+    <tr><td>3</td><td><code>add</code> (menu)</td><td>section and its keys</td></tr>
+    <tr><td>4</td><td><code>add -c</code></td><td>custom component</td></tr>
+    <tr><td>5</td><td><code>icons</code></td><td>React icon component</td></tr>
+    <tr><td>6</td><td><code>add-lang</code></td><td>German dictionary and routes</td></tr>
+    <tr><td>7</td><td><code>status</code></td><td>report of the project</td></tr>
+  </tbody>
+</table>
+<p>You wrote the texts and the design. aarshi wrote the files that connect them: the folders, the routes, the sitemap and the dictionary keys, which the compiler checks against the default language.</p>

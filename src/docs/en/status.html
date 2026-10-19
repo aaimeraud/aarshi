@@ -1,0 +1,47 @@
+<h1>Checking a project</h1>
+<p class="lead"><code>aarshi status</code> reads your project and reports what is missing or wrong. It is a read-only check: it never changes a file, so you can run it as often as you like. <code>aarshi check</code> is a shorter alias that gives the same report.</p>
+
+<h2>Reading the report</h2>
+<p>The report has one section per subject, in this order: <code>config</code>, <code>i18n</code>, <code>pages</code>, <code>sections</code>, <code>components</code> and <code>dependencies</code>. A subject with nothing to report shows a <code>✓</code>. Otherwise its findings are listed underneath:</p>
+<dl>
+  <dt>error</dt>
+  <dd>Something is broken or missing. The report counts it, and the exit code is <code>1</code>.</dd>
+  <dt>todo</dt>
+  <dd>Something is unfinished, such as an empty translation. The report counts it, but the exit code stays <code>0</code>.</dd>
+</dl>
+<p>The last line gives the verdict on the whole project: <code>✓ project is conformant</code>, <code>✓ project is conformant (N to do)</code>, or <code>error: N errors, M to do</code>.</p>
+
+<h2>Exit codes</h2>
+<table>
+  <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>0</code></td><td>No error. Todos alone still give <code>0</code>.</td></tr>
+    <tr><td><code>1</code></td><td>At least one error was found.</td></tr>
+    <tr><td><code>2</code></td><td>The project cannot be read: <code>aarshi.toml</code> is missing, unreadable or invalid. The message goes to stderr, and nothing goes to stdout.</td></tr>
+  </tbody>
+</table>
+<p>The exit code is useful in scripts and continuous integration: a non-zero code stops the pipeline.</p>
+
+<h2>Options</h2>
+<dl>
+  <dt><code>--dimension &lt;name&gt;</code></dt>
+  <dd>Shows only some subjects. Repeat the flag or separate names with commas: <code>--dimension config,i18n</code>. The filter only changes the display: the exit code and the summary still cover the whole project, and a line tells you how many findings are hidden.</dd>
+  <dt><code>--errors-only</code></dt>
+  <dd>Hides the <code>todo</code> lines. The verdict and the exit code do not change.</dd>
+  <dt><code>--json</code></dt>
+  <dd>Prints a single JSON document instead of the report, for other tools. It has a <code>format_version</code> field (currently <code>1</code>), a global <code>summary</code>, and the list of findings with their rule, severity and location. On exit code <code>2</code>, nothing is printed on stdout.</dd>
+</dl>
+
+<h2>The subjects</h2>
+<table>
+  <thead><tr><th>Subject</th><th>What it checks</th></tr></thead>
+  <tbody>
+    <tr><td><code>config</code></td><td>The base files and folders, <code>aarshi.toml</code>, Tailwind wiring, and the options matching the files.</td></tr>
+    <tr><td><code>i18n</code></td><td>The dictionaries: the same keys in every language, empty values, duplicates, languages declared in the config files.</td></tr>
+    <tr><td><code>pages</code></td><td>That each route has a view, that each view has a route, and that the sitemap lists the pages.</td></tr>
+    <tr><td><code>sections</code></td><td>That each section is imported and used in its view, and that its keys exist.</td></tr>
+    <tr><td><code>components</code></td><td>The imports of your components, and that each icon has its component.</td></tr>
+    <tr><td><code>dependencies</code></td><td>That the packages your code imports are declared in <code>package.json</code>, and that the lockfile matches <code>package_manager</code>.</td></tr>
+  </tbody>
+</table>
+<p>Each subject lists the exact rules it runs in the <code>CONVENTIONS.md</code> file of the repository.</p>

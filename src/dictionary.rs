@@ -33,8 +33,10 @@ pub fn entries(content: &str) -> Vec<Entry> {
         .collect()
 }
 
+/// A value is empty when it is empty after trimming: `""`, `" "` and `"\n"`
+/// all count as untranslated.
 pub fn is_empty(entry: &Entry) -> bool {
-    entry.value.is_empty() || entry.value == "\"\""
+    entry.value.trim_matches('"').trim().is_empty()
 }
 
 /// Page names are the folders of `views/` that hold a `<name>.view.tsx` file.

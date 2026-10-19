@@ -1,12 +1,14 @@
 mod add;
-mod check;
 mod config;
 mod dictionary;
+mod docs;
 mod icons;
 mod lang;
 mod output;
 mod project;
+mod remove;
 mod setup;
+mod status;
 mod templates;
 
 use anyhow::Result;
@@ -37,8 +39,50 @@ enum Command {
         #[arg(long)]
         all: bool,
     },
-    /// Report empty translations and missing routes
-    Check,
+    /// Report what is missing or wrong in the Next.js project
+    #[command(visible_alias = "check")]
+    Status(StatusArgs),
+    /// Open the aarshi documentation in the browser
+    Docs,
+    /// Remove pages, sections or components, keeping a copy to restore
+    Remove(RemoveArgs),
+    /// Put back what the last `remove` took out
+    Restore(RestoreArgs),
+}
+
+#[derive(Args)]
+struct RemoveArgs {
+    /// Remove everything that can be removed, without picking
+    #[arg(long)]
+    all: bool,
+    /// Do not ask for confirmation
+    #[arg(short = 'y', long)]
+    yes: bool,
+}
+
+#[derive(Args)]
+struct RestoreArgs {
+    /// Do not ask for confirmation
+    #[arg(short = 'y', long)]
+    yes: bool,
+}
+
+#[derive(Args)]
+struct StatusArgs {
+    /// Restrict the report to these dimensions, repeatable, commas accepted
+    #[arg(
+        long,
+        value_name = "NAME",
+        value_delimiter = ',',
+        value_parser = clap::value_parser!(status::Dimension)
+    )]
+    dimension: Vec<status::Dimension>,
+    /// Show broken rules only; kept `todo`s still count in the verdict
+    #[arg(long)]
+    errors_only: bool,
+    /// Write the report as JSON on stdout
+    #[arg(long)]
+    json: bool,
 }
 
 #[derive(Args)]
@@ -115,6 +159,12 @@ struct AddArgs {
 
 fn main() {
     if let Err(error) = run() {
+        if let Some(exit) = error.downcast_ref::<status::Exit>() {
+            if !exit.message.is_empty() {
+                eprintln!("{}", output::error(&exit.message));
+            }
+            std::process::exit(exit.code);
+        }
         eprintln!("{}", output::error(&format!("{error:#}")));
         std::process::exit(1);
     }
@@ -122,7 +172,11 @@ fn main() {
 
 fn run() -> Result<()> {
     let cli = Cli::parse();
-    output::print_header();
+    // `status` keeps the header to itself: it must print nothing on stdout
+    // when it stops (JSON strictness, exit code 2 outside a project).
+    if !matches!(cli.command, Command::Status(_)) {
+        output::print_header();
+    }
     match cli.command {
         Command::Setup(args) => setup::run(setup::SetupOptions {
             package_manager: package_manager(&args),
@@ -144,7 +198,17 @@ fn run() -> Result<()> {
         }),
         Command::AddLang { code } => lang::run(code),
         Command::Icons { all } => icons::run(all),
-        Command::Check => check::run(),
+        Command::Docs => docs::run(),
+        Command::Remove(args) => remove::run(remove::RemoveOptions {
+            all: args.all,
+            yes: args.yes,
+        }),
+        Command::Restore(args) => remove::restore(args.yes),
+        Command::Status(args) => status::run(status::Options {
+            dimensions: args.dimension,
+            errors_only: args.errors_only,
+            json: args.json,
+        }),
     }
 }
 

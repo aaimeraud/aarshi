@@ -1,0 +1,76 @@
+<h1>Exemple pas à pas</h1>
+<p class="lead">Dans ce tutoriel, vous construisez un petit site de présentation, puis vous lui ajoutez une page <em>À propos</em> avec une section d'équipe, un composant personnalisé, une icône et une traduction allemande. Au passage, vous utilisez presque toutes les commandes d'aarshi.</p>
+
+<div class="card must">
+  <strong>Il vous faut :</strong> Node.js, un gestionnaire de paquets, et un terminal dans le dossier où vous voulez le projet. Chaque étape indique ce qu'elle fait et quels fichiers changent.
+</div>
+
+<h2>1. Créer le projet</h2>
+<pre><code>aarshi setup portfolio --languages fr,en --default-language fr --yes
+cd portfolio</code></pre>
+<p>aarshi crée le projet Next.js, installe les dépendances et écrit <code>aarshi.toml</code>. Le français est la langue par défaut : <code>/</code> redirige vers <code>/fr</code>.</p>
+
+<h2>2. Ajouter une page</h2>
+<pre><code>aarshi add -p a-propos</code></pre>
+<p>aarshi crée trois choses pour la page :</p>
+<ul>
+  <li><code>views/a-propos/a-propos.view.tsx</code>, la vue qui affiche la page ;</li>
+  <li><code>app/[locale]/a-propos/page.tsx</code>, la route, qui sert <code>/fr/a-propos</code> et <code>/en/a-propos</code> ;</li>
+  <li>une entrée dans <code>app/sitemap.ts</code>, pour que les moteurs de recherche la trouvent.</li>
+</ul>
+<p>Elle ajoute aussi la clé <code>"a-propos.title"</code> dans <code>lib/i18n/dictionaries/fr.ts</code> et <code>en.ts</code>, avec une valeur vide. Remplissez-les :</p>
+<pre><code>// lib/i18n/dictionaries/fr.ts
+"a-propos.title": "À propos",
+
+// lib/i18n/dictionaries/en.ts
+"a-propos.title": "About",</code></pre>
+
+<h2>3. Ajouter une section avec le menu</h2>
+<p>Une section est un bloc de la page. Tapez la commande sans argument :</p>
+<pre><code>aarshi add</code></pre>
+<ol class="steps">
+  <li>Choisissez <em>Section</em> dans le premier menu.</li>
+  <li>Tapez le nom <code>equipe</code>.</li>
+  <li>Dans le menu des pages, choisissez <code>a-propos</code>.</li>
+</ol>
+<p>aarshi crée <code>views/a-propos/sections/equipe.tsx</code>, l'ajoute à la vue, et ajoute <code>"a-propos.equipe.title"</code> dans les deux dictionnaires. Remplissez-la comme précédemment, par exemple <code>"Notre équipe"</code> et <code>"Our team"</code>.</p>
+<div class="card tip">
+  <strong>Sans le menu.</strong> La même section avec une option : <code>aarshi add -s galerie a-propos</code>.
+</div>
+
+<h2>4. Ajouter un composant personnalisé</h2>
+<pre><code>aarshi add -c carte-membre</code></pre>
+<p>Cela crée <code>components/custom/carte-membre.tsx</code>, un composant de départ que vous pouvez utiliser dans la section. Le composant vous appartient : aarshi ne le modifie plus ensuite.</p>
+
+<h2>5. Convertir une icône</h2>
+<p>Enregistrez une icône exportée depuis votre outil de dessin sous <code>components/icons/logo.svg</code>, puis lancez :</p>
+<pre><code>aarshi icons --all</code></pre>
+<p>aarshi écrit <code>components/icons/logo.tsx</code>, un composant React au même dessin. Importez-le comme n'importe quel composant.</p>
+
+<h2>6. Ajouter une traduction allemande</h2>
+<pre><code>aarshi add-lang de</code></pre>
+<p>aarshi crée <code>lib/i18n/dictionaries/de.ts</code> avec toutes les clés du dictionnaire par défaut, toutes vides, et ajoute <code>de</code> aux langues. Le site est maintenant aussi servi sous <code>/de</code>, mais ses textes sont encore vides. Remplissez-les : <code>"a-propos.title": "Über uns",</code>, et ainsi de suite pour chaque clé.</p>
+
+<h2>7. Vérifier le projet</h2>
+<pre><code>aarshi status</code></pre>
+<p>Tant que toutes les valeurs ne sont pas remplies, <code>aarshi status</code> liste les valeurs vides comme <code>todo</code> dans la section <code>i18n</code>. Ce ne sont pas des erreurs : le code de sortie reste <code>0</code>. Une fois tout rempli, le rapport se termine par <code>✓ project is conformant</code>.</p>
+<p>Pour ne voir que l'essentiel, lancez <code>aarshi status --errors-only</code>.</p>
+
+<h2>8. Voir le résultat</h2>
+<pre><code>npm run dev</code></pre>
+<p>Ouvrez <code>http://localhost:3000/fr/a-propos</code>, puis <code>/en/a-propos</code> et <code>/de/a-propos</code>. Le sélecteur de langue de l'en-tête change la langue de la page courante.</p>
+
+<h2>Ce que vous avez fait</h2>
+<table>
+  <thead><tr><th>Étape</th><th>Commande</th><th>Résultat</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><code>setup</code></td><td>projet, <code>aarshi.toml</code></td></tr>
+    <tr><td>2</td><td><code>add -p</code></td><td>page, route, entrée du plan du site, clés</td></tr>
+    <tr><td>3</td><td><code>add</code> (menu)</td><td>section et ses clés</td></tr>
+    <tr><td>4</td><td><code>add -c</code></td><td>composant personnalisé</td></tr>
+    <tr><td>5</td><td><code>icons</code></td><td>composant React de l'icône</td></tr>
+    <tr><td>6</td><td><code>add-lang</code></td><td>dictionnaire et routes en allemand</td></tr>
+    <tr><td>7</td><td><code>status</code></td><td>rapport du projet</td></tr>
+  </tbody>
+</table>
+<p>Vous écrivez les textes et le design. aarshi écrit les fichiers qui les relient : les dossiers, les routes, le plan du site et les clés des dictionnaires, que le compilateur vérifie par rapport à la langue par défaut.</p>

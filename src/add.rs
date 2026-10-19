@@ -40,13 +40,7 @@ pub fn run(options: AddOptions) -> Result<()> {
             section.to_ascii_lowercase()
         };
         validate_name("section", &section)?;
-        let page = ask_target_page(&root, languages, options.page)?;
-        add_section(&root, languages, &page, &section)?;
-        println!(
-            "{}",
-            output::success(&format!("section `{section}` added to page `{page}`"))
-        );
-        return Ok(());
+        return section_in_page(&root, languages, &section, options.page);
     }
     if let Some(component) = options.component {
         let component = if component.is_empty() {
@@ -55,18 +49,11 @@ pub fn run(options: AddOptions) -> Result<()> {
             component.to_ascii_lowercase()
         };
         validate_name("component", &component)?;
-        create_custom_component(&root, &component)?;
-        println!(
-            "{}",
-            output::success(&format!("custom component `{component}` created"))
-        );
-        return Ok(());
+        return custom_component(&root, &component);
     }
     if options.page_only {
         let page = ask_new_page(options.page)?;
-        create_page(&root, languages, &page)?;
-        println!("{}", output::success(&format!("page `{page}` created")));
-        return Ok(());
+        return new_page(&root, languages, &page);
     }
     if options.page.is_some() {
         bail!(
@@ -81,30 +68,45 @@ pub fn run(options: AddOptions) -> Result<()> {
     {
         "Section" => {
             let section = prompt_name("section")?;
-            let page = ask_target_page(&root, languages, None)?;
-            add_section(&root, languages, &page, &section)?;
-            println!(
-                "{}",
-                output::success(&format!("section `{section}` added to page `{page}`"))
-            );
-            Ok(())
+            section_in_page(&root, languages, &section, None)
         }
         "Page" => {
             let page = ask_new_page(None)?;
-            create_page(&root, languages, &page)?;
-            println!("{}", output::success(&format!("page `{page}` created")));
-            Ok(())
+            new_page(&root, languages, &page)
         }
         _ => {
             let component = prompt_name("component")?;
-            create_custom_component(&root, &component)?;
-            println!(
-                "{}",
-                output::success(&format!("custom component `{component}` created"))
-            );
-            Ok(())
+            custom_component(&root, &component)
         }
     }
+}
+
+fn section_in_page(
+    root: &Path,
+    languages: &[String],
+    section: &str,
+    page: Option<String>,
+) -> Result<()> {
+    let page = ask_target_page(root, languages, page)?;
+    add_section(root, languages, &page, section)?;
+    done(&format!("section `{section}` added to page `{page}`"));
+    Ok(())
+}
+
+fn new_page(root: &Path, languages: &[String], page: &str) -> Result<()> {
+    create_page(root, languages, page)?;
+    done(&format!("page `{page}` created"));
+    Ok(())
+}
+
+fn custom_component(root: &Path, name: &str) -> Result<()> {
+    create_custom_component(root, name)?;
+    done(&format!("custom component `{name}` created"));
+    Ok(())
+}
+
+fn done(message: &str) {
+    println!("{}", output::success(message));
 }
 
 /// The new page name, from the flag or the prompt.
@@ -248,10 +250,17 @@ fn view_file(root: &Path, page: &str) -> PathBuf {
 
 /// Every language shares one route tree, under the `[locale]` segment.
 pub fn route_file(root: &Path, route_path: &str) -> PathBuf {
-    let mut path = root.join("app/[locale]");
+    root.join(route_file_path(route_path))
+}
+
+/// The route file of a URL path, relative to the project: `app/[locale]/page.tsx`
+/// for `/`, `app/[locale]/<page>/page.tsx` otherwise.
+pub fn route_file_path(route_path: &str) -> String {
+    let mut path = String::from("app/[locale]");
     for segment in route_path.split('/').filter(|s| !s.is_empty()) {
-        path.push(segment);
+        path.push('/');
+        path.push_str(segment);
     }
-    path.push("page.tsx");
+    path.push_str("/page.tsx");
     path
 }
