@@ -113,4 +113,4 @@ It opens locally, works offline, and covers `aarshi.toml`, every command, a comp
 
 ## Contributing
 
-Reports, ideas and fixes are welcome. Open an issue with the bug report or feature request template, or read [CONTRIBUTING.md](CONTRIBUTING.md) for the build, test and pull request workflow. Design decisions and specifications live in [`issues/`](issues/).
+Reports, ideas and fixes are welcome. Open an issue with the bug report or feature request template, or read [CONTRIBUTING.md](CONTRIBUTING.md) for the build, test and pull request workflow.

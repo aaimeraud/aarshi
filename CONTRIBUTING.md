@@ -57,4 +57,4 @@ Keep a pull request focused. A change that mixes a fix, a refactor and a new fea
 - Code and code comments are in English. The CLI prints in English. The documentation is written in English and French.
 - Comments are short and only where the behaviour is not obvious. Public Rust functions have a `///` doc comment.
 - Commit messages follow `type(scope): summary`, for example `fix(status): exit 2 when aarshi.toml cannot be analyzed`.
-- Specification work and design decisions are kept as numbered tickets in [`issues/`](issues/) (`NNNN-slug.md`). Link the ticket when a change follows from one.
+- A behaviour change is easier to review when its issue or pull request explains the decision it follows from.

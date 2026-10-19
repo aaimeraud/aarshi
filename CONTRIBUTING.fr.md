@@ -57,4 +57,4 @@ Gardez une pull request ciblée. Une modification qui mélange un correctif, un 
 - Le code et les commentaires de code sont en anglais. La CLI affiche en anglais. La documentation est écrite en anglais et en français.
 - Les commentaires sont courts et uniquement là où le comportement n'est pas évident. Les fonctions Rust publiques ont un commentaire de documentation `///`.
 - Les messages de commit suivent `type(scope): summary`, par exemple `fix(status): exit 2 when aarshi.toml cannot be analyzed`.
-- Le travail de spécification et les décisions de conception sont notés sous forme de tickets numérotés dans [`issues/`](issues/) (`NNNN-slug.md`). Liez le ticket quand une modification en découle.
+- Une modification de comportement est plus facile à relire quand son issue ou sa pull request explique la décision dont elle découle.

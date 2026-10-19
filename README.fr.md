@@ -113,4 +113,4 @@ Elle s'ouvre localement, fonctionne hors ligne, et couvre `aarshi.toml`, chaque 
 
 ## Contribuer
 
-Les signalements, idées et corrections sont bienvenus. Ouvrez une issue avec le modèle de bug ou de demande de fonctionnalité, ou lisez [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md) pour compiler, tester et proposer une pull request. Les décisions de conception et les spécifications sont dans [`issues/`](issues/).
+Les signalements, idées et corrections sont bienvenus. Ouvrez une issue avec le modèle de bug ou de demande de fonctionnalité, ou lisez [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md) pour compiler, tester et proposer une pull request.
