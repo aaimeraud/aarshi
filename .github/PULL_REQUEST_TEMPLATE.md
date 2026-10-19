@@ -14,6 +14,6 @@
 
 - [ ] `cargo fmt` and `cargo test` pass.
 - [ ] A test covers the change (`tests/cli.rs` for CLI behaviour).
-- [ ] The documentation is updated in English and French (README, CONVENTIONS and `src/docs/`).
+- [ ] The documentation is updated in English and French (README, CONTRIBUTING, CONVENTIONS and `src/docs/`).
 - [ ] A new `status` rule is listed in `CONVENTIONS.md` and `CONVENTIONS.fr.md`.
 - [ ] Commit messages follow `type(scope): summary`.

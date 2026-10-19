@@ -1,30 +1,22 @@
-# Conventions
+# Conventions of the generated projects
 
-Conventions for the `aarshi` repository and for the projects it generates. French version: [`CONVENTIONS.fr.md`](CONVENTIONS.fr.md).
+These conventions describe the Next.js projects created by `aarshi setup` and extended by `aarshi add`. They are written for the developers of those sites. Conventions for contributing to aarshi itself are in [CONTRIBUTING.md](CONTRIBUTING.md). French version: [CONVENTIONS.fr.md](CONVENTIONS.fr.md).
 
-## Repository
-
-- Language: documentation in English (`README.md`, `CONVENTIONS.md`) with a French counterpart (`*.fr.md`). Code and code comments in English.
-- Comments are short and only where the behavior is not obvious. Public Rust functions have a `///` doc comment.
-- Stack: Rust, `clap` for commands, `inquire` for interactive questions, one binary.
-- Specification work is tracked as numbered issues in `issues/` (`NNNN-slug.md`), with frontmatter (`labels`, `status`, `parent`, `blocked-by`). The map is `issues/0001-map.md`.
-- Commit messages follow `type(scope): summary`.
-
-## Generated projects
+## Project structure
 
 - TypeScript, Next.js App Router, Tailwind, ESLint, no `src/` folder.
 - `AGENTS.md` is generated at the project root.
 - Telemetry is disabled per project (`.env`), not globally.
-- Structure: `views/` for page views, `sections/` for sections, one shared route tree under `app/[locale]/`, typed dictionaries per language.
+- `views/` holds page views and `views/<page>/sections/` the page sections, with one shared route tree under `app/[locale]/` and typed dictionaries per language.
 - Text direction (`ltr` or `rtl`) comes from the language, not from the page.
-- Components: shadcn (styled, Base UI based) by default, or Base UI directly. Class names go through `cn` from `@sglara/cn`. `components/custom/` holds project components, `components/icons/` the SVGs converted by `aarshi icons`.
+- Components: shadcn (styled, Base UI based) by default, or Base UI directly. Class names go through `cn` from `@sglara/cn`. `components/custom/` holds project components and `components/icons/` the SVGs converted by `aarshi icons`.
 - Generated TypeScript uses arrow functions and named exports for sections, icons and custom components.
 
-### Invariants of the generated project
+## Invariants checked by `aarshi status`
 
-These are the invariants a generated project must satisfy; `aarshi status` verifies them. Each is one rule with a stable identifier (`<dimension>.<subject>-<problem>`), grouped below by dimension, with its severity in parentheses: `error` (the project is broken) or `todo` (something is still to be done).
+These are the invariants a generated project must satisfy. Each is one rule with a stable identifier (`<dimension>.<subject>-<problem>`), grouped below by dimension, with its severity in parentheses: `error` (the project is broken) or `todo` (something is still to be done).
 
-#### config
+### config
 
 - `config.file-missing` (`error`): a base file or folder is missing (`app/[locale]/layout.tsx`, `app/sitemap.ts`, `app/robots.ts`, `lib/site.ts`, `lib/i18n/config.ts`, `lib/i18n/index.ts`, `components/language-switcher.tsx`, `tsconfig.json`, `eslint.config.mjs`, `next.config.ts`, `components/custom/`, `components/icons/`).
 - `config.tailwind-missing` (`error`): Tailwind is wired neither by `@tailwindcss/turbopack` in `next.config.ts` nor by a `postcss.config.*` that uses `@tailwindcss/postcss`.
@@ -37,7 +29,7 @@ These are the invariants a generated project must satisfy; `aarshi status` verif
 - `config.option-icons` (`error`): `icons` and `lucide-react` disagree.
 - `config.import-broken` (`error`): a broken import in a base file.
 
-#### i18n
+### i18n
 
 - `i18n.languages-mismatch` (`error`): the `languages` of `config.ts` and `aarshi.toml` disagree.
 - `i18n.default-locale-mismatch` (`error`): `defaultLocale` differs from `languages[0]`.
@@ -50,7 +42,7 @@ These are the invariants a generated project must satisfy; `aarshi status` verif
 - `i18n.key-extra` (`todo`): a key is absent from the default dictionary.
 - `i18n.dictionary-orphan` (`todo`): a dictionary exists for a language outside `aarshi.toml`.
 
-#### pages
+### pages
 
 - `pages.route-missing` (`error`): a view without a route.
 - `pages.route-orphan` (`error`): a route without a view.
@@ -60,7 +52,7 @@ These are the invariants a generated project must satisfy; `aarshi status` verif
 - `pages.view-import-missing` (`error`): the view import is missing or incorrect in the route.
 - `pages.import-broken` (`error`): a broken import in a view or a route.
 
-#### sections
+### sections
 
 - `sections.file-missing` (`error`): a dangling import (view → missing `sections/<section>.tsx`).
 - `sections.title-key-missing` (`error`): the `"<page>.<section>.title"` key is missing from a dictionary.
@@ -68,18 +60,13 @@ These are the invariants a generated project must satisfy; `aarshi status` verif
 - `sections.orphan` (`todo`): a section never imported.
 - `sections.import-broken` (`error`): a broken import in a section.
 
-#### components
+### components
 
 - `components.icon-unconverted` (`todo`): a `.svg` without a generated component.
 - `components.import-broken` (`error`): a broken import in `components/`.
 
-#### dependencies
+### dependencies
 
 - `dependencies.package-missing` (`error`): an imported package not declared in `package.json` (`@sglara/cn`, `next`, `react`, `@base-ui/react`, `lucide-react`, ...).
 - `dependencies.lockfile-mismatch` (`error`): a lockfile inconsistent with `package_manager`.
 - `dependencies.modules-missing` (`todo`): `node_modules/` is missing.
-
-## Not yet specified
-
-- Exact naming of templates and generated files (see the map).
-
