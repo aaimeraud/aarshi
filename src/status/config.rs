@@ -1,5 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
+use super::imports::{Target, imports_of};
 use crate::{
     config::{Config, ICONS_LUCIDE, UI_BASE},
     status::{Dimension, Finding, Location, Severity},
@@ -36,12 +37,6 @@ const UI_COMPONENTS: &[&str] = &["components/ui/button.tsx", "components/ui/butt
 /// The dependency each option requires to be declared in `package.json`.
 const UI_PACKAGE: &str = "@base-ui/react";
 const ICONS_PACKAGE: &str = "lucide-react";
-
-/// Asset extensions an import may point into; anything else without the
-/// `.ts`/`.tsx` ending is resolved as a TypeScript module.
-const ASSET_EXTENSIONS: &[&str] = &[
-    ".css", ".scss", ".sass", ".svg", ".json", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".md",
-];
 
 /// Files of the base inventory reported through the dimension that owns
 /// their content (rule 0013, applied by the 0030 recipe): a missing or
@@ -299,8 +294,9 @@ fn check_site_url(content: &str, config: &Config, findings: &mut Vec<Finding>) {
 
 /// One `config.import-broken` finding per import of a base file that no
 /// local file provides. Package imports belong to the `dependencies`
-/// dimension, `components/` imports to the `components` one, and an import
-/// reaching a missing base file is already reported by `config.file-missing`.
+/// dimension, `components/` imports to the `components` one, asset imports
+/// stay out of the textual reach of v1, and an import reaching a missing
+/// base file is already reported by `config.file-missing`.
 fn check_imports(
     root: &Path,
     file: &str,
@@ -308,25 +304,28 @@ fn check_imports(
     missing: &[&str],
     findings: &mut Vec<Finding>,
 ) {
-    for source in import_sources(content) {
-        let Some(candidates) = import_candidates(source.trim(), file) else {
-            continue;
+    for import in imports_of(root, file, content) {
+        let broken = match &import.target {
+            Target::Local { candidates, found } => {
+                // The `components` masters resolve the imports of their files.
+                let owned = candidates[0].starts_with("components");
+                // A missing base file is already reported by `config.file-missing`.
+                let already_missing = candidates
+                    .iter()
+                    .any(|path| path.to_str().is_some_and(|path| missing.contains(&path)));
+                found.is_none() && !owned && !already_missing
+            }
+            Target::Escapes => true,
+            Target::Asset { .. } | Target::Bare => false,
         };
-        if candidates.iter().any(|path| root.join(path).exists()) {
-            continue;
-        }
-        // A missing base file is already reported by `config.file-missing`.
-        let already_missing = candidates
-            .iter()
-            .any(|path| missing.contains(&path.to_str().unwrap_or_default()));
-        if already_missing {
+        if !broken {
             continue;
         }
         findings.push(Finding {
             dimension: Dimension::Config,
             rule: "config.import-broken",
             severity: Severity::Error,
-            summary: format!("{file} imports `{source}`, but the file does not exist"),
+            summary: format!("{file} imports `{}`, but the file does not exist", import.module),
             detail: None,
             location: Some(Location {
                 file: Some(file.to_string()),
@@ -334,78 +333,4 @@ fn check_imports(
             }),
         });
     }
-}
-
-/// The candidate files an import may point into, as paths inside the
-/// project; `None` when the import is not for `config`: packages belong to
-/// the `dependencies` dimension, `components/` to the `components` one, and
-/// asset imports (`.css`, `.svg`, …) stay out of the textual reach of v1.
-fn import_candidates(source: &str, file: &str) -> Option<Vec<PathBuf>> {
-    let local = source.starts_with("@/") || source.starts_with("./") || source.starts_with("../");
-    if !local || ASSET_EXTENSIONS.iter().any(|ext| source.ends_with(ext)) {
-        return None;
-    }
-    let target = normalize(source, file)?;
-    if target.starts_with("components/") {
-        // The `components` masters resolve the imports of their files.
-        return None;
-    }
-    if !(source.ends_with(".ts") || source.ends_with(".tsx")) {
-        return Some([
-            PathBuf::from(format!("{target}.ts")),
-            PathBuf::from(format!("{target}.tsx")),
-            PathBuf::from(format!("{target}/index.ts")),
-            PathBuf::from(format!("{target}/index.tsx")),
-        ]
-        .into());
-    }
-    Some(vec![PathBuf::from(target)])
-}
-
-/// Cleans the `.` and `..` segments of an import source, resolved from the
-/// directory of `from_file`; `@/` starts at the project root.
-fn normalize(source: &str, from_file: &str) -> Option<String> {
-    let segments: Vec<&str> = match source.strip_prefix("@/") {
-        Some(rest) => rest.split('/').collect(),
-        None => {
-            let parts: Vec<&str> = from_file.split('/').collect();
-            parts[..parts.len() - 1]
-                .iter()
-                .copied()
-                .chain(source.split('/'))
-                .collect()
-        }
-    };
-    let mut cleaned: Vec<&str> = Vec::new();
-    for segment in segments {
-        match segment {
-            "." => {}
-            ".." => {
-                cleaned.pop()?;
-            }
-            other => cleaned.push(other),
-        }
-    }
-    Some(cleaned.join("/"))
-}
-
-/// The quoted import sources of a TypeScript base file: the string after a
-/// `from`, or a bare side-effect `import "..."`.
-fn import_sources(content: &str) -> Vec<String> {
-    let mut sources = Vec::new();
-    for line in content.lines() {
-        let mut source = line
-            .split_once("from \"")
-            .and_then(|(_, rest)| rest.split_once('"').map(|(source, _)| source));
-        if source.is_none() {
-            source = line
-                .trim_start()
-                .strip_prefix("import \"")
-                .and_then(|rest| rest.split_once('"').map(|(source, _)| source));
-        }
-        if let Some(source) = source {
-            sources.push(source.to_string());
-        }
-    }
-    sources
 }

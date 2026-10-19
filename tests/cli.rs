@@ -2365,6 +2365,43 @@ fn config_reports_a_broken_import_in_a_base_file() {
 }
 
 #[test]
+fn config_reads_single_quoted_and_escaping_imports_of_a_base_file() {
+    let sandbox = Sandbox::new("config-import-quotes");
+    let project = i18n_project("config-import-quotes");
+
+    // Single quotes name the same module as double quotes.
+    write_project_file(
+        &project,
+        "app/[locale]/layout.tsx",
+        "import { helper } from '@/lib/nope';\n",
+    );
+    let output = status_config(&sandbox, &project);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stdout(&output)
+            .contains("error: app/[locale]/layout.tsx imports `@/lib/nope`, but the file does not exist"),
+        "{}",
+        stdout(&output)
+    );
+
+    // An import climbing above the project root is never provided by a file.
+    write_project_file(
+        &project,
+        "app/[locale]/layout.tsx",
+        "import { up } from \"../../../outside\";\n",
+    );
+    let output = status_config(&sandbox, &project);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stdout(&output).contains(
+            "error: app/[locale]/layout.tsx imports `../../../outside`, but the file does not exist"
+        ),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
 fn config_leaves_missing_base_files_to_the_file_missing_rule() {
     let sandbox = Sandbox::new("config-import-file-missing");
     let project = i18n_project("config-import-file-missing");
