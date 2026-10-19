@@ -2,7 +2,7 @@
 
 A Rust CLI that scaffolds multilingual Next.js sites (App Router) with `views/`, `sections/`, one shared route tree per language prefix, and typed dictionaries. The generated project is TypeScript.
 
-Status: the v1 CLI is in review (PR #4), and `aarshi status` is now implemented. See [`issues/0001-map.md`](issues/0001-map.md) for the decisions and open points.
+Status: the v1 CLI is complete and under review. See [`issues/0001-map.md`](issues/0001-map.md) for the decisions and open points.
 
 French version: [`README.fr.md`](README.fr.md). Conventions: [`CONVENTIONS.md`](CONVENTIONS.md).
 

@@ -2,7 +2,7 @@
 
 Un CLI en Rust qui génère des sites Next.js multilingues (App Router) avec `views/`, `sections/`, une arborescence de routes commune par préfixe de langue et des dictionnaires typés. Le projet généré est en TypeScript.
 
-Statut : le CLI v1 est en revue (PR #4), et `aarshi status` est désormais implémenté. Voir [`issues/0001-map.md`](issues/0001-map.md) pour les décisions et les points ouverts.
+Statut : le CLI v1 est complet et en revue. Voir [`issues/0001-map.md`](issues/0001-map.md) pour les décisions et les points ouverts.
 
 Version anglaise : [`README.md`](README.md). Conventions : [`CONVENTIONS.fr.md`](CONVENTIONS.fr.md).
 
