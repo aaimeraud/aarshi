@@ -57,5 +57,15 @@ aarshi icons --all</code></pre>
 <pre><code>aarshi docs</code></pre>
 <p>Opens this documentation in your browser. The pages are included in the aarshi program and written to a temporary folder each time, so they always match your version of aarshi. The page opens in French when your system language starts with <code>fr</code>, in English otherwise.</p>
 
+<h2 id="remove">aarshi remove and aarshi restore</h2>
+<pre><code>aarshi remove
+aarshi remove --all --yes
+aarshi restore</code></pre>
+<p><code>aarshi remove</code> lists what aarshi added to the project (pages, sections and custom components) and removes the ones you pick, with checkboxes. <code>--all</code> selects everything, and <code>--yes</code> skips the confirmation. The home page is never offered: <code>/</code> needs it. A section of a removed page goes with the page.</p>
+<p>Before removing anything, aarshi copies every file it is about to change into <code>.aarshi/removed/</code>. <code>aarshi restore</code> copies them back and forgets the removal, so the project files return to their state before <code>remove</code>. Only the last removal can be restored. Files you changed since the removal are overwritten.</p>
+<div class="card">
+  <strong>Keep <code>.aarshi/</code> out of git.</strong> aarshi adds it to <code>.gitignore</code> when the project has one.
+</div>
+
 <h2>aarshi status</h2>
 <p>Reads the project and reports what is missing or wrong. It changes nothing. See <a href="status.html">Checking a project</a>.</p>

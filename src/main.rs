@@ -6,6 +6,7 @@ mod icons;
 mod lang;
 mod output;
 mod project;
+mod remove;
 mod setup;
 mod status;
 mod templates;
@@ -43,6 +44,27 @@ enum Command {
     Status(StatusArgs),
     /// Open the aarshi documentation in the browser
     Docs,
+    /// Remove pages, sections or components, keeping a copy to restore
+    Remove(RemoveArgs),
+    /// Put back what the last `remove` took out
+    Restore(RestoreArgs),
+}
+
+#[derive(Args)]
+struct RemoveArgs {
+    /// Remove everything that can be removed, without picking
+    #[arg(long)]
+    all: bool,
+    /// Do not ask for confirmation
+    #[arg(short = 'y', long)]
+    yes: bool,
+}
+
+#[derive(Args)]
+struct RestoreArgs {
+    /// Do not ask for confirmation
+    #[arg(short = 'y', long)]
+    yes: bool,
 }
 
 #[derive(Args)]
@@ -177,6 +199,11 @@ fn run() -> Result<()> {
         Command::AddLang { code } => lang::run(code),
         Command::Icons { all } => icons::run(all),
         Command::Docs => docs::run(),
+        Command::Remove(args) => remove::run(remove::RemoveOptions {
+            all: args.all,
+            yes: args.yes,
+        }),
+        Command::Restore(args) => remove::restore(args.yes),
         Command::Status(args) => status::run(status::Options {
             dimensions: args.dimension,
             errors_only: args.errors_only,

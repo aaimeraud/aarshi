@@ -4008,3 +4008,144 @@ fn status_exits_two_when_aarshi_toml_has_an_unknown_key() {
     assert!(error.contains("cannot analyze aarshi.toml:"), "{error}");
     assert!(error.contains("unknown field `templates`"), "{error}");
 }
+
+/// Every file of the project as its content, leaving out `.aarshi` and `node_modules`.
+fn project_tree(root: &Path) -> std::collections::BTreeMap<String, String> {
+    fn walk(base: &Path, dir: &Path, out: &mut std::collections::BTreeMap<String, String>) {
+        for entry in fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            let rel = path
+                .strip_prefix(base)
+                .unwrap()
+                .to_string_lossy()
+                .into_owned();
+            if rel.starts_with(".aarshi") || rel.starts_with("node_modules") {
+                continue;
+            }
+            if path.is_dir() {
+                walk(base, &path, out);
+            } else {
+                out.insert(rel, fs::read_to_string(&path).unwrap_or_default());
+            }
+        }
+    }
+    let mut out = std::collections::BTreeMap::new();
+    walk(root, root, &mut out);
+    out
+}
+
+#[test]
+fn remove_takes_out_what_was_added_and_restore_puts_it_back() {
+    let sandbox = Sandbox::new("remove-restore");
+    let project = sandbox.setup("site", &[]);
+    assert!(
+        sandbox
+            .run(&project, &["add", "-p", "about"])
+            .status
+            .success()
+    );
+    assert!(
+        sandbox
+            .run(&project, &["add", "-s", "team", "about"])
+            .status
+            .success()
+    );
+    assert!(
+        sandbox
+            .run(&project, &["add", "-c", "badge"])
+            .status
+            .success()
+    );
+    let before = project_tree(&project);
+
+    let output = sandbox.run(&project, &["remove", "--all", "--yes"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(!project.join("views/about").exists());
+    assert!(!project.join("app/[locale]/about").exists());
+    assert!(!project.join("components/custom/badge.tsx").exists());
+    assert!(!read(&project.join("app/sitemap.ts")).contains("\"/about\""));
+    assert!(!read(&project.join("lib/i18n/dictionaries/fr.ts")).contains("\"about."));
+    assert!(read(&project.join("views/home/home.view.tsx")).contains("HomeView"));
+    assert!(project.join("app/[locale]/page.tsx").exists());
+
+    let output = sandbox.run(&project, &["restore", "--yes"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(project_tree(&project), before);
+    assert!(!project.join(".aarshi").exists());
+}
+
+#[test]
+fn remove_keeps_its_copies_out_of_git() {
+    let sandbox = Sandbox::new("remove-gitignore");
+    let project = sandbox.setup("site", &[]);
+    fs::write(project.join(".gitignore"), "node_modules\n").unwrap();
+    assert!(
+        sandbox
+            .run(&project, &["add", "-p", "about"])
+            .status
+            .success()
+    );
+    assert!(
+        sandbox
+            .run(&project, &["remove", "--all", "--yes"])
+            .status
+            .success()
+    );
+    let gitignore = read(&project.join(".gitignore"));
+    assert!(gitignore.contains("node_modules"));
+    assert_eq!(gitignore.matches(".aarshi/").count(), 1);
+
+    assert!(
+        sandbox
+            .run(&project, &["add", "-c", "badge"])
+            .status
+            .success()
+    );
+    assert!(
+        sandbox
+            .run(&project, &["remove", "--all", "--yes"])
+            .status
+            .success()
+    );
+    assert_eq!(
+        read(&project.join(".gitignore"))
+            .matches(".aarshi/")
+            .count(),
+        1
+    );
+
+    assert!(
+        sandbox
+            .run(&project, &["restore", "--yes"])
+            .status
+            .success()
+    );
+    assert!(read(&project.join(".gitignore")).contains(".aarshi/"));
+}
+
+#[test]
+fn restore_without_a_removal_is_refused() {
+    let sandbox = Sandbox::new("restore-nothing");
+    let project = sandbox.setup("site", &[]);
+    let output = sandbox.run(&project, &["restore", "--yes"]);
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains("nothing to restore"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn remove_never_offers_the_home_page() {
+    let sandbox = Sandbox::new("remove-home");
+    let project = sandbox.setup("site", &[]);
+    let output = sandbox.run(&project, &["remove", "--all", "--yes"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("nothing to remove"),
+        "{}",
+        stdout(&output)
+    );
+    assert!(project.join("views/home").exists());
+}

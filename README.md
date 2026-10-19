@@ -18,6 +18,8 @@ Every command asks for the values it needs when they are not given as arguments.
 - `aarshi add-lang <code>`: adds a language (e.g. `de`) to an existing project. Creates its dictionary with empty values and updates the language list.
 - `aarshi docs`: writes the documentation (HTML, embedded in the binary) to a temporary folder, emptied on every call, and opens it in the browser. The page is in French when the system language starts with `fr`, in English otherwise.
 - `aarshi icons`: lists the `.svg` files of `components/icons/` as checkboxes and converts the selected ones to React components (`--all` converts every file without asking). `class` becomes `className`, attributes become camelCase, inline styles become objects, and simple values become Tailwind classes (`width`/`height` to `size-*`, `fill="currentColor"` to `fill-current`, `fill="none"` to `fill-none`, `stroke="currentColor"` to `stroke-current`). An existing component is never overwritten.
+- `aarshi remove`: lists what aarshi added (pages, sections and custom components) as checkboxes and removes the selected ones. `--all` selects everything, and `--yes` skips the confirmation. The home page is never offered. Before touching anything, it copies every file it will change into `.aarshi/removed/` and adds that folder to the project's `.gitignore`.
+- `aarshi restore`: puts back the files of the last `remove` and forgets it. `--yes` skips the confirmation. A section of a removed page comes back with the page.
 
 ### aarshi status
 

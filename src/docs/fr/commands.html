@@ -57,5 +57,15 @@ aarshi icons --all</code></pre>
 <pre><code>aarshi docs</code></pre>
 <p>Ouvre cette documentation dans votre navigateur. Les pages sont incluses dans le programme aarshi et réécrites dans un dossier temporaire à chaque appel : elles correspondent donc toujours à votre version d'aarshi. La page s'ouvre en français quand la langue de votre système commence par <code>fr</code>, en anglais sinon.</p>
 
+<h2 id="remove">aarshi remove et aarshi restore</h2>
+<pre><code>aarshi remove
+aarshi remove --all --yes
+aarshi restore</code></pre>
+<p><code>aarshi remove</code> liste ce qu'aarshi a ajouté au projet (pages, sections et composants personnalisés) et supprime ceux que vous choisissez, avec des cases à cocher. <code>--all</code> sélectionne tout, et <code>--yes</code> évite la confirmation. La page d'accueil n'est jamais proposée : <code>/</code> en a besoin. Une section d'une page supprimée part avec la page.</p>
+<p>Avant de supprimer quoi que ce soit, aarshi copie chaque fichier qu'il va modifier dans <code>.aarshi/removed/</code>. <code>aarshi restore</code> les recopie et oublie la suppression, pour que les fichiers du projet retrouvent leur état d'avant <code>remove</code>. Seule la dernière suppression peut être restaurée. Les fichiers modifiés depuis la suppression sont écrasés.</p>
+<div class="card">
+  <strong>Gardez <code>.aarshi/</code> hors de git.</strong> aarshi l'ajoute à <code>.gitignore</code> quand le projet en a un.
+</div>
+
 <h2>aarshi status</h2>
 <p>Lit le projet et signale ce qui manque ou ce qui ne va pas. Il ne modifie rien. Voir <a href="status.html">Vérifier un projet</a>.</p>
