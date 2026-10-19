@@ -71,17 +71,18 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
         if SELF_REPORTED.contains(file) {
             continue;
         }
-        findings.push(Finding {
-            dimension: Dimension::Config,
-            rule: "config.file-missing",
-            severity: Severity::Error,
-            summary: format!("missing `{file}`"),
-            detail: None,
-            location: Some(Location {
+        findings.push(
+            Finding::new(
+                Dimension::Config,
+                "config.file-missing",
+                Severity::Error,
+                format!("missing `{file}`"),
+            )
+            .at(Location {
                 file: Some(file.to_string()),
                 ..Location::default()
             }),
-        });
+        );
     }
 
     // An unreadable file absorbs its checks: an `error` says checked then wrong.
@@ -94,18 +95,19 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
     if let Some(content) = &project_file {
         for key in PERSISTED_KEYS {
             if !has_key(content, key) {
-                findings.push(Finding {
-                    dimension: Dimension::Config,
-                    rule: "config.project-file-incomplete",
-                    severity: Severity::Todo,
-                    summary: format!("aarshi.toml is missing the `{key}` key"),
-                    detail: None,
-                    location: Some(Location {
+                findings.push(
+                    Finding::new(
+                        Dimension::Config,
+                        "config.project-file-incomplete",
+                        Severity::Todo,
+                        format!("aarshi.toml is missing the `{key}` key"),
+                    )
+                    .at(Location {
                         file: Some("aarshi.toml".to_string()),
                         key: Some((*key).to_string()),
                         ..Location::default()
                     }),
-                });
+                );
             }
         }
     }
@@ -113,17 +115,19 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
     if let Some(content) = &sitemap
         && !content.contains(PAGES_MARKER)
     {
-        findings.push(Finding {
-            dimension: Dimension::Config,
-            rule: "config.marker-missing",
-            severity: Severity::Error,
-            summary: format!("app/sitemap.ts has no `// {PAGES_MARKER}` marker"),
-            detail: Some(format!("expected // {PAGES_MARKER}")),
-            location: Some(Location {
+        findings.push(
+            Finding::new(
+                Dimension::Config,
+                "config.marker-missing",
+                Severity::Error,
+                format!("app/sitemap.ts has no `// {PAGES_MARKER}` marker"),
+            )
+            .detail(format!("expected // {PAGES_MARKER}"))
+            .at(Location {
                 file: Some("app/sitemap.ts".to_string()),
                 ..Location::default()
             }),
-        });
+        );
     }
 
     if let Some(content) = &next_config {
@@ -138,48 +142,54 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
 
     for file in UI_COMPONENTS {
         if !root.join(file).exists() {
-            findings.push(Finding {
-                dimension: Dimension::Config,
-                rule: "config.option-ui",
-                severity: Severity::Error,
-                summary: format!("missing `{file}`"),
-                detail: Some(format!("required when ui = `{}`", config.ui)),
-                location: Some(Location {
+            findings.push(
+                Finding::new(
+                    Dimension::Config,
+                    "config.option-ui",
+                    Severity::Error,
+                    format!("missing `{file}`"),
+                )
+                .detail(format!("required when ui = `{}`", config.ui))
+                .at(Location {
                     file: Some((*file).to_string()),
                     key: Some("ui".to_string()),
                     ..Location::default()
                 }),
-            });
+            );
         }
     }
     if let Some(content) = &package {
         if config.ui == UI_BASE && !content.contains(&format!("\"{UI_PACKAGE}\"")) {
-            findings.push(Finding {
-                dimension: Dimension::Config,
-                rule: "config.option-ui",
-                severity: Severity::Error,
-                summary: format!("package.json does not declare `{UI_PACKAGE}`"),
-                detail: Some(format!("required when ui = `{}`", config.ui)),
-                location: Some(Location {
+            findings.push(
+                Finding::new(
+                    Dimension::Config,
+                    "config.option-ui",
+                    Severity::Error,
+                    format!("package.json does not declare `{UI_PACKAGE}`"),
+                )
+                .detail(format!("required when ui = `{}`", config.ui))
+                .at(Location {
                     file: Some("package.json".to_string()),
                     key: Some("ui".to_string()),
                     ..Location::default()
                 }),
-            });
+            );
         }
         if config.icons == ICONS_LUCIDE && !content.contains(&format!("\"{ICONS_PACKAGE}\"")) {
-            findings.push(Finding {
-                dimension: Dimension::Config,
-                rule: "config.option-icons",
-                severity: Severity::Error,
-                summary: format!("package.json does not declare `{ICONS_PACKAGE}`"),
-                detail: Some(format!("required when icons = `{ICONS_LUCIDE}`")),
-                location: Some(Location {
+            findings.push(
+                Finding::new(
+                    Dimension::Config,
+                    "config.option-icons",
+                    Severity::Error,
+                    format!("package.json does not declare `{ICONS_PACKAGE}`"),
+                )
+                .detail(format!("required when icons = `{ICONS_LUCIDE}`"))
+                .at(Location {
                     file: Some("package.json".to_string()),
                     key: Some("icons".to_string()),
                     ..Location::default()
                 }),
-            });
+            );
         }
     }
 
@@ -203,20 +213,11 @@ fn check_tailwind(root: &Path, next_config: &str, findings: &mut Vec<Finding>) {
     if postcss {
         return;
     }
-    findings.push(Finding {
-        dimension: Dimension::Config,
-        rule: "config.tailwind-missing",
-        severity: Severity::Error,
-        summary: "Tailwind is not wired".to_string(),
-        detail: Some(
-            "add `@tailwindcss/turbopack` to next.config.ts, or a postcss.config.* that uses `@tailwindcss/postcss`"
-                .to_string(),
-        ),
-        location: Some(Location {
+    findings.push(Finding::new(Dimension::Config, "config.tailwind-missing", Severity::Error, "Tailwind is not wired".to_string()).detail("add `@tailwindcss/turbopack` to next.config.ts, or a postcss.config.* that uses `@tailwindcss/postcss`"
+                .to_string(),).at(Location {
             file: Some("next.config.ts".to_string()),
             ..Location::default()
-        }),
-    });
+        }));
 }
 
 /// Reads a file, swallowing any error so the report never stops.
@@ -255,24 +256,27 @@ fn check_redirect(content: &str, config: &Config, findings: &mut Vec<Finding>) {
     };
     match slash_redirect(content) {
         Some(destination) if destination == expected => {}
-        Some(destination) => findings.push(Finding {
-            dimension: Dimension::Config,
-            rule: "config.next-config-redirect",
-            severity: Severity::Error,
-            summary: format!(
-                "next.config.ts redirects \"/\" to \"{destination}\", expected \"{expected}\""
-            ),
-            detail: None,
-            location: Some(location),
-        }),
-        None => findings.push(Finding {
-            dimension: Dimension::Config,
-            rule: "config.next-config-redirect",
-            severity: Severity::Error,
-            summary: "next.config.ts has no redirect for \"/\"".to_string(),
-            detail: Some(format!("expected \"{expected}\"")),
-            location: Some(location),
-        }),
+        Some(destination) => findings.push(
+            Finding::new(
+                Dimension::Config,
+                "config.next-config-redirect",
+                Severity::Error,
+                format!(
+                    "next.config.ts redirects \"/\" to \"{destination}\", expected \"{expected}\""
+                ),
+            )
+            .at(location),
+        ),
+        None => findings.push(
+            Finding::new(
+                Dimension::Config,
+                "config.next-config-redirect",
+                Severity::Error,
+                "next.config.ts has no redirect for \"/\"".to_string(),
+            )
+            .detail(format!("expected \"{expected}\""))
+            .at(location),
+        ),
     }
 }
 
@@ -287,18 +291,20 @@ fn check_cache_components(content: &str, config: &Config, findings: &mut Vec<Fin
     } else {
         ("next.config.ts enables `cacheComponents`", "false")
     };
-    findings.push(Finding {
-        dimension: Dimension::Config,
-        rule: "config.option-cache-components",
-        severity: Severity::Error,
-        summary: summary.to_string(),
-        detail: Some(format!("expected cacheComponents = {expected}")),
-        location: Some(Location {
+    findings.push(
+        Finding::new(
+            Dimension::Config,
+            "config.option-cache-components",
+            Severity::Error,
+            summary.to_string(),
+        )
+        .detail(format!("expected cacheComponents = {expected}"))
+        .at(Location {
             file: Some("next.config.ts".to_string()),
             key: Some("cache_components".to_string()),
             ..Location::default()
         }),
-    });
+    );
 }
 
 /// The `SITE_URL` of `lib/site.ts` must match `aarshi.toml`.
@@ -315,21 +321,22 @@ fn check_site_url(content: &str, config: &Config, findings: &mut Vec<Finding>) {
     if declared == config.site_url {
         return;
     }
-    findings.push(Finding {
-        dimension: Dimension::Config,
-        rule: "config.option-site-url",
-        severity: Severity::Error,
-        summary: format!(
-            "lib/site.ts sets SITE_URL to \"{declared}\", expected \"{}\"",
-            config.site_url
-        ),
-        detail: None,
-        location: Some(Location {
+    findings.push(
+        Finding::new(
+            Dimension::Config,
+            "config.option-site-url",
+            Severity::Error,
+            format!(
+                "lib/site.ts sets SITE_URL to \"{declared}\", expected \"{}\"",
+                config.site_url
+            ),
+        )
+        .at(Location {
             file: Some("lib/site.ts".to_string()),
             key: Some("site_url".to_string()),
             ..Location::default()
         }),
-    });
+    );
 }
 
 /// One `config.import-broken` finding per import of a base file that no
@@ -361,19 +368,20 @@ fn check_imports(
         if !broken {
             continue;
         }
-        findings.push(Finding {
-            dimension: Dimension::Config,
-            rule: "config.import-broken",
-            severity: Severity::Error,
-            summary: format!(
-                "{file} imports `{}`, but the file does not exist",
-                import.module
-            ),
-            detail: None,
-            location: Some(Location {
+        findings.push(
+            Finding::new(
+                Dimension::Config,
+                "config.import-broken",
+                Severity::Error,
+                format!(
+                    "{file} imports `{}`, but the file does not exist",
+                    import.module
+                ),
+            )
+            .at(Location {
                 file: Some(file.to_string()),
                 ..Location::default()
             }),
-        });
+        );
     }
 }

@@ -72,17 +72,19 @@ fn owned_files(root: &Path) -> Vec<String> {
 pub fn collect(root: &Path, _config: &Config, findings: &mut Vec<Finding>) {
     for component in unconverted_icons(root) {
         let file = format!("components/icons/{component}.svg");
-        findings.push(Finding {
-            dimension: Dimension::Components,
-            rule: "components.icon-unconverted",
-            severity: Severity::Todo,
-            summary: format!("`{file}` has no generated component"),
-            detail: Some(format!("expected components/icons/{component}.tsx")),
-            location: Some(Location {
+        findings.push(
+            Finding::new(
+                Dimension::Components,
+                "components.icon-unconverted",
+                Severity::Todo,
+                format!("`{file}` has no generated component"),
+            )
+            .detail(format!("expected components/icons/{component}.tsx"))
+            .at(Location {
                 file: Some(file),
                 ..Location::default()
             }),
-        });
+        );
     }
 
     for file in owned_files(root) {
@@ -93,17 +95,19 @@ pub fn collect(root: &Path, _config: &Config, findings: &mut Vec<Finding>) {
             if import.is_bare() || import.is_provided() {
                 continue;
             }
-            findings.push(Finding {
-                dimension: Dimension::Components,
-                rule: "components.import-broken",
-                severity: Severity::Error,
-                summary: format!("broken import `{}` in `{file}`", import.module),
-                detail: Some(format!("no file matches `{}`", import.module)),
-                location: Some(Location {
+            findings.push(
+                Finding::new(
+                    Dimension::Components,
+                    "components.import-broken",
+                    Severity::Error,
+                    format!("broken import `{}` in `{file}`", import.module),
+                )
+                .detail(format!("no file matches `{}`", import.module))
+                .at(Location {
                     file: Some(file.clone()),
                     ..Location::default()
                 }),
-            });
+            );
         }
     }
 }

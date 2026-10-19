@@ -46,17 +46,19 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
     report_packages(root, config, &declared, findings);
     report_lockfiles(root, config, findings);
     if !root.join("node_modules").is_dir() {
-        findings.push(Finding {
-            dimension: Dimension::Dependencies,
-            rule: "dependencies.modules-missing",
-            severity: Severity::Todo,
-            summary: "`node_modules/` is missing".to_string(),
-            detail: Some(format!("run {} install", config.package_manager)),
-            location: Some(Location {
+        findings.push(
+            Finding::new(
+                Dimension::Dependencies,
+                "dependencies.modules-missing",
+                Severity::Todo,
+                "`node_modules/` is missing".to_string(),
+            )
+            .detail(format!("run {} install", config.package_manager))
+            .at(Location {
                 file: Some("node_modules/".to_string()),
                 ..Location::default()
             }),
-        });
+        );
     }
 }
 
@@ -108,17 +110,19 @@ fn report_packages(root: &Path, config: &Config, declared: &[String], findings: 
     packages.sort_by(|a, b| a.name.cmp(&b.name));
     for package in &mut packages {
         package.importers.sort();
-        findings.push(Finding {
-            dimension: Dimension::Dependencies,
-            rule: "dependencies.package-missing",
-            severity: Severity::Error,
-            summary: format!("`{}` is not declared in package.json", package.name),
-            detail: Some(format!("imported in {}", package.importers.join(", "))),
-            location: Some(Location {
+        findings.push(
+            Finding::new(
+                Dimension::Dependencies,
+                "dependencies.package-missing",
+                Severity::Error,
+                format!("`{}` is not declared in package.json", package.name),
+            )
+            .detail(format!("imported in {}", package.importers.join(", ")))
+            .at(Location {
                 file: Some("package.json".to_string()),
                 ..Location::default()
             }),
-        });
+        );
     }
 }
 
@@ -175,23 +179,25 @@ fn report_lockfiles(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
         if !root.join(lockfile).is_file() || *manager == config.package_manager {
             continue;
         }
-        findings.push(Finding {
-            dimension: Dimension::Dependencies,
-            rule: "dependencies.lockfile-mismatch",
-            severity: Severity::Error,
-            summary: format!(
-                "`{lockfile}` is present, but aarshi.toml declares the `{}` package manager",
-                config.package_manager
-            ),
-            detail: Some(format!(
+        findings.push(
+            Finding::new(
+                Dimension::Dependencies,
+                "dependencies.lockfile-mismatch",
+                Severity::Error,
+                format!(
+                    "`{lockfile}` is present, but aarshi.toml declares the `{}` package manager",
+                    config.package_manager
+                ),
+            )
+            .detail(format!(
                 "expected {}",
                 expected_lockfile(&config.package_manager)
-            )),
-            location: Some(Location {
+            ))
+            .at(Location {
                 file: Some(lockfile.to_string()),
                 ..Location::default()
             }),
-        });
+        );
     }
 }
 

@@ -47,17 +47,19 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
             if target.is_empty() || import.is_provided() {
                 continue;
             }
-            findings.push(Finding {
-                dimension: Dimension::Sections,
-                rule: "sections.file-missing",
-                severity: Severity::Error,
-                summary: format!("dangling import `{}` in `{file}`", import.module),
-                detail: Some(format!("expected views/{page}/sections/{target}.tsx")),
-                location: Some(Location {
+            findings.push(
+                Finding::new(
+                    Dimension::Sections,
+                    "sections.file-missing",
+                    Severity::Error,
+                    format!("dangling import `{}` in `{file}`", import.module),
+                )
+                .detail(format!("expected views/{page}/sections/{target}.tsx"))
+                .at(Location {
                     file: Some(file.clone()),
                     ..Location::default()
                 }),
-            });
+            );
         }
     }
 
@@ -78,18 +80,19 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
             for section in sections {
                 let key = format!("{page}.{section}.title");
                 if !keys.contains(&key) {
-                    findings.push(Finding {
-                        dimension: Dimension::Sections,
-                        rule: "sections.title-key-missing",
-                        severity: Severity::Error,
-                        summary: format!("`{key}` is missing from the dictionary of `{locale}`"),
-                        detail: None,
-                        location: Some(Location {
+                    findings.push(
+                        Finding::new(
+                            Dimension::Sections,
+                            "sections.title-key-missing",
+                            Severity::Error,
+                            format!("`{key}` is missing from the dictionary of `{locale}`"),
+                        )
+                        .at(Location {
                             file: Some(file.clone()),
                             locale: Some(locale.clone()),
                             key: Some(key.clone()),
                         }),
-                    });
+                    );
                 }
             }
         }
@@ -104,17 +107,18 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
         };
         for marker in [IMPORTS_MARKER, SECTIONS_MARKER] {
             if !content.contains(marker) {
-                findings.push(Finding {
-                    dimension: Dimension::Sections,
-                    rule: "sections.marker-missing",
-                    severity: Severity::Error,
-                    summary: format!("`{file}` is missing the marker `{marker}`"),
-                    detail: None,
-                    location: Some(Location {
+                findings.push(
+                    Finding::new(
+                        Dimension::Sections,
+                        "sections.marker-missing",
+                        Severity::Error,
+                        format!("`{file}` is missing the marker `{marker}`"),
+                    )
+                    .at(Location {
                         file: Some(file.clone()),
                         ..Location::default()
                     }),
-                });
+                );
             }
         }
     }
@@ -146,17 +150,18 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
                 continue;
             }
             let section_file = format!("views/{page}/sections/{section}.tsx");
-            findings.push(Finding {
-                dimension: Dimension::Sections,
-                rule: "sections.orphan",
-                severity: Severity::Todo,
-                summary: format!("section `{section}` of `{page}` is never imported"),
-                detail: None,
-                location: Some(Location {
+            findings.push(
+                Finding::new(
+                    Dimension::Sections,
+                    "sections.orphan",
+                    Severity::Todo,
+                    format!("section `{section}` of `{page}` is never imported"),
+                )
+                .at(Location {
                     file: Some(section_file),
                     ..Location::default()
                 }),
-            });
+            );
         }
     }
 
@@ -172,17 +177,19 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
                 if import.is_bare() || import.is_provided() {
                     continue;
                 }
-                findings.push(Finding {
-                    dimension: Dimension::Sections,
-                    rule: "sections.import-broken",
-                    severity: Severity::Error,
-                    summary: format!("broken import `{}` in `{file}`", import.module),
-                    detail: Some(format!("no file matches `{}`", import.module)),
-                    location: Some(Location {
+                findings.push(
+                    Finding::new(
+                        Dimension::Sections,
+                        "sections.import-broken",
+                        Severity::Error,
+                        format!("broken import `{}` in `{file}`", import.module),
+                    )
+                    .detail(format!("no file matches `{}`", import.module))
+                    .at(Location {
                         file: Some(file.clone()),
                         ..Location::default()
                     }),
-                });
+                );
             }
         }
     }

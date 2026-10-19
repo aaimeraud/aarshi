@@ -145,17 +145,19 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
         let route_file = route_file_path(&route_path);
         // view -> route: every view waits for its route file.
         let Some(route) = route_files.iter().find(|r| r.path == route_path) else {
-            findings.push(Finding {
-                dimension: Dimension::Pages,
-                rule: "pages.route-missing",
-                severity: Severity::Error,
-                summary: format!("no route for the page `{page}`"),
-                detail: Some(format!("expected {route_file}")),
-                location: Some(Location {
+            findings.push(
+                Finding::new(
+                    Dimension::Pages,
+                    "pages.route-missing",
+                    Severity::Error,
+                    format!("no route for the page `{page}`"),
+                )
+                .detail(format!("expected {route_file}"))
+                .at(Location {
                     file: Some(route_file),
                     ..Location::default()
                 }),
-            });
+            );
             continue;
         };
         // The route exists: it must import the view through its alias.
@@ -165,17 +167,19 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
                 .iter()
                 .any(|import| import.module == view_module)
             {
-                findings.push(Finding {
-                    dimension: Dimension::Pages,
-                    rule: "pages.view-import-missing",
-                    severity: Severity::Error,
-                    summary: format!("`{route_path}` does not import its view"),
-                    detail: Some(format!("expected {view_module}")),
-                    location: Some(Location {
+                findings.push(
+                    Finding::new(
+                        Dimension::Pages,
+                        "pages.view-import-missing",
+                        Severity::Error,
+                        format!("`{route_path}` does not import its view"),
+                    )
+                    .detail(format!("expected {view_module}"))
+                    .at(Location {
                         file: Some(route.file.clone()),
                         ..Location::default()
                     }),
-                });
+                );
             }
         }
     }
@@ -188,18 +192,24 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
         // A single-segment route names its view; nested ones have no
         // conventional view to offer as a fix.
         let single_segment = route.path == "/" || !route.path[1..].contains('/');
-        findings.push(Finding {
-            dimension: Dimension::Pages,
-            rule: "pages.route-orphan",
-            severity: Severity::Error,
-            summary: format!("no view for the route `{}`", route.path),
-            detail: single_segment
-                .then(|| format!("expected views/{}/{}.view.tsx", route.page, route.page)),
-            location: Some(Location {
-                file: Some(route.file.clone()),
-                ..Location::default()
-            }),
+        let finding = Finding::new(
+            Dimension::Pages,
+            "pages.route-orphan",
+            Severity::Error,
+            format!("no view for the route `{}`", route.path),
+        )
+        .at(Location {
+            file: Some(route.file.clone()),
+            ..Location::default()
         });
+        if single_segment {
+            findings.push(finding.detail(format!(
+                "expected views/{}/{}.view.tsx",
+                route.page, route.page
+            )));
+        } else {
+            findings.push(finding);
+        }
     }
 
     // The `<page>.title` key is expected in every dictionary, seeded by the
@@ -217,18 +227,19 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
         for page in &page_files {
             let key = format!("{page}.title");
             if !keys.contains(&key) {
-                findings.push(Finding {
-                    dimension: Dimension::Pages,
-                    rule: "pages.title-key-missing",
-                    severity: Severity::Error,
-                    summary: format!("`{key}` is missing from the dictionary of `{locale}`"),
-                    detail: None,
-                    location: Some(Location {
+                findings.push(
+                    Finding::new(
+                        Dimension::Pages,
+                        "pages.title-key-missing",
+                        Severity::Error,
+                        format!("`{key}` is missing from the dictionary of `{locale}`"),
+                    )
+                    .at(Location {
                         file: Some(file.clone()),
                         locale: Some(locale.clone()),
                         key: Some(key.clone()),
                     }),
-                });
+                );
             }
         }
     }
@@ -239,36 +250,39 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
         for page in &page_files {
             let entry = route_path(page);
             if !entries.contains(&entry) {
-                findings.push(Finding {
-                    dimension: Dimension::Pages,
-                    rule: "pages.sitemap-entry-missing",
-                    severity: Severity::Error,
-                    summary: format!("no sitemap entry for `{entry}`"),
-                    detail: Some(format!("expected \"{entry}\",")),
-                    location: Some(Location {
+                findings.push(
+                    Finding::new(
+                        Dimension::Pages,
+                        "pages.sitemap-entry-missing",
+                        Severity::Error,
+                        format!("no sitemap entry for `{entry}`"),
+                    )
+                    .detail(format!("expected \"{entry}\","))
+                    .at(Location {
                         file: Some("app/sitemap.ts".to_string()),
                         key: Some(entry.clone()),
                         ..Location::default()
                     }),
-                });
+                );
             }
         }
         for entry in &entries {
             if entry == "/" || expected_paths.iter().any(|serve| serve == entry) {
                 continue;
             }
-            findings.push(Finding {
-                dimension: Dimension::Pages,
-                rule: "pages.sitemap-entry-orphan",
-                severity: Severity::Error,
-                summary: format!("sitemap entry `{entry}` has no page"),
-                detail: None,
-                location: Some(Location {
+            findings.push(
+                Finding::new(
+                    Dimension::Pages,
+                    "pages.sitemap-entry-orphan",
+                    Severity::Error,
+                    format!("sitemap entry `{entry}` has no page"),
+                )
+                .at(Location {
                     file: Some("app/sitemap.ts".to_string()),
                     key: Some(entry.clone()),
                     ..Location::default()
                 }),
-            });
+            );
         }
     }
 
@@ -312,15 +326,17 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
 
 /// Adds one broken-import finding for an unresolved module.
 fn raise_broken_import(findings: &mut Vec<Finding>, file: &str, import: &ResolvedImport) {
-    findings.push(Finding {
-        dimension: Dimension::Pages,
-        rule: "pages.import-broken",
-        severity: Severity::Error,
-        summary: format!("broken import `{}` in `{file}`", import.module),
-        detail: Some(format!("no file matches `{}`", import.module)),
-        location: Some(Location {
+    findings.push(
+        Finding::new(
+            Dimension::Pages,
+            "pages.import-broken",
+            Severity::Error,
+            format!("broken import `{}` in `{file}`", import.module),
+        )
+        .detail(format!("no file matches `{}`", import.module))
+        .at(Location {
             file: Some(file.to_string()),
             ..Location::default()
         }),
-    });
+    );
 }

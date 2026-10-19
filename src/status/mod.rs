@@ -108,6 +108,35 @@ pub struct Finding {
     pub location: Option<Location>,
 }
 
+impl Finding {
+    /// A finding without detail or location: add them with `detail` and `at`.
+    pub fn new(
+        dimension: Dimension,
+        rule: &'static str,
+        severity: Severity,
+        summary: impl Into<String>,
+    ) -> Self {
+        Self {
+            dimension,
+            rule,
+            severity,
+            summary: summary.into(),
+            detail: None,
+            location: None,
+        }
+    }
+
+    pub fn detail(mut self, detail: impl Into<String>) -> Self {
+        self.detail = Some(detail.into());
+        self
+    }
+
+    pub fn at(mut self, location: Location) -> Self {
+        self.location = Some(location);
+        self
+    }
+}
+
 /// The collected findings of a whole project, sorted for display.
 pub struct Report {
     pub findings: Vec<Finding>,
