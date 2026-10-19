@@ -1,0 +1,84 @@
+name: Bug report
+description: Something aarshi does wrong, or refuses to do.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. The more exact the steps, the faster it can be fixed.
+
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      description: The exact command you ran, flags included.
+      placeholder: aarshi add -s team about
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: aarshi version
+      description: The output of `aarshi --version`.
+      placeholder: aarshi 0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What you did, in order, from an empty folder if possible.
+      placeholder: |
+        1. aarshi setup demo --yes
+        2. cd demo
+        3. aarshi add -p about
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Paste the full output of the command, not a summary.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of `aarshi status --json`
+      description: Only if the problem concerns a project. Remove anything private, such as a site URL you do not want to share.
+      render: json
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and found no duplicate.
+          required: true
+        - label: I removed private information from the output.
+          required: true
