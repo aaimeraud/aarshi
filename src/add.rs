@@ -250,10 +250,17 @@ fn view_file(root: &Path, page: &str) -> PathBuf {
 
 /// Every language shares one route tree, under the `[locale]` segment.
 pub fn route_file(root: &Path, route_path: &str) -> PathBuf {
-    let mut path = root.join("app/[locale]");
+    root.join(route_file_path(route_path))
+}
+
+/// The route file of a URL path, relative to the project: `app/[locale]/page.tsx`
+/// for `/`, `app/[locale]/<page>/page.tsx` otherwise.
+pub fn route_file_path(route_path: &str) -> String {
+    let mut path = String::from("app/[locale]");
     for segment in route_path.split('/').filter(|s| !s.is_empty()) {
-        path.push(segment);
+        path.push('/');
+        path.push_str(segment);
     }
-    path.push("page.tsx");
+    path.push_str("/page.tsx");
     path
 }

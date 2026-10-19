@@ -6,6 +6,7 @@ use std::{collections::HashSet, fs, path::Path};
 
 use super::imports::{ResolvedImport, imports_of};
 use crate::{
+    add::{route_file_path, route_path},
     config::Config,
     dictionary,
     status::{Dimension, Finding, Location, Severity},
@@ -141,7 +142,7 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
 
     for page in &page_files {
         let route_path = route_path(page);
-        let route_file = route_file(&route_path);
+        let route_file = route_file_path(&route_path);
         // view -> route: every view waits for its route file.
         let Some(route) = route_files.iter().find(|r| r.path == route_path) else {
             findings.push(Finding {
@@ -322,19 +323,4 @@ fn raise_broken_import(findings: &mut Vec<Finding>, file: &str, import: &Resolve
             ..Location::default()
         }),
     });
-}
-
-/// The URL path a view waits for: `/` for the home page, else `/<page>`.
-fn route_path(page: &str) -> String {
-    crate::add::route_path(page)
-}
-
-/// The route file a view waits for: `app/[locale]/page.tsx` at the root,
-/// `app/[locale]/<page>/page.tsx` after.
-fn route_file(route_path: &str) -> String {
-    if route_path == "/" {
-        "app/[locale]/page.tsx".to_string()
-    } else {
-        format!("app/[locale]{route_path}/page.tsx")
-    }
 }
