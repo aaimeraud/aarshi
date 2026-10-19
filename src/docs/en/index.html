@@ -26,7 +26,9 @@
 </ul>
 
 <h2>Install aarshi</h2>
-<p>aarshi is written in Rust and is not published yet. For now, build it from the repository:</p>
+<p>Each <a href="https://github.com/aaimeraud/aarshi/releases">GitHub release</a> carries prebuilt binaries for macOS (Apple silicon and Intel), Linux x86_64 and Windows x86_64. Download the asset for your system, put it on your <code>PATH</code>, and keep it current with:</p>
+<pre><code>aarshi update</code></pre>
+<p><code>aarshi update --check</code> says whether a newer version exists without installing it. aarshi is not published on crates.io; to build it from source instead, clone the repository and run:</p>
 <pre><code>cargo install --path .</code></pre>
 <p>Then check that it answers:</p>
 <pre><code>aarshi --version</code></pre>

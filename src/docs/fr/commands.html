@@ -53,6 +53,12 @@ aarshi icons --all</code></pre>
 <p>Placez des fichiers <code>.svg</code> dans <code>components/icons/</code>, puis lancez la commande. Elle les liste avec des cases à cocher, et chaque fichier choisi devient un composant React à côté de lui. <code>--all</code> convertit tous les fichiers sans demander. Un composant existant n'est jamais écrasé.</p>
 <p>Les attributs prennent leur nom React (<code>class</code> devient <code>className</code>), les styles en ligne deviennent des objets, et les valeurs simples deviennent des classes Tailwind : <code>width</code> et <code>height</code> deviennent <code>size-*</code>, <code>fill="currentColor"</code> devient <code>fill-current</code>.</p>
 
+<h2 id="update">aarshi update</h2>
+<pre><code>aarshi update
+aarshi update --check</code></pre>
+<p>Remplace le binaire aarshi par la dernière release publiée sur GitHub. aarshi lit la dernière release, choisit le binaire compilé pour votre système (macOS Apple silicon ou Intel, Linux x86_64, Windows x86_64), vérifie son empreinte <code>sha256</code> quand GitHub en publie une, et l'installe à la place du binaire courant. <code>--check</code> indique seulement si une version plus récente existe.</p>
+<p>Quand aarshi a été installé avec <code>cargo install</code>, la mise à jour remplace quand même le binaire ; le prochain <code>cargo install</code> réinstalle la version que vous avez compilée.</p>
+
 <h2 id="docs">aarshi docs</h2>
 <pre><code>aarshi docs</code></pre>
 <p>Ouvre cette documentation dans votre navigateur. Les pages sont incluses dans le programme aarshi et réécrites dans un dossier temporaire à chaque appel : elles correspondent donc toujours à votre version d'aarshi. La page s'ouvre en français quand la langue de votre système commence par <code>fr</code>, en anglais sinon.</p>

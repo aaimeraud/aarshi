@@ -18,12 +18,18 @@ Un site Next.js multilingue, c'est de la plomberie avant d'être du contenu : un
 
 ## Prérequis
 
-- **Rust 1.85 ou plus récent** pour compiler aarshi (édition 2024).
+- **Rust 1.85 ou plus récent** pour compiler aarshi depuis les sources (édition 2024). Les binaires prêts à l'emploi n'ont besoin d'aucun outil Rust.
 - **Node.js et un gestionnaire de paquets** (npm, pnpm, yarn ou bun) pour créer et lancer le site généré.
 
 ## Installer
 
-aarshi n'est pas encore publié sur crates.io. Compilez-le depuis le dépôt :
+Chaque [release GitHub](https://github.com/aaimeraud/aarshi/releases) contient des binaires prêts à l'emploi pour macOS (Apple silicon et Intel), Linux x86_64 et Windows x86_64. Téléchargez celui de votre plateforme, placez-le dans votre `PATH`, puis gardez-le à jour :
+
+```sh
+aarshi update
+```
+
+`aarshi update --check` indique la dernière version sans l'installer. aarshi n'est pas publié sur crates.io ; pour le compiler depuis les sources à la place (Rust 1.85 ou plus récent) :
 
 ```sh
 git clone https://github.com/aaimeraud/aarshi.git
@@ -87,6 +93,7 @@ Ouvrez <http://localhost:3000/fr/about>, puis passez à `/en/about`.
 | `aarshi remove` | Liste ce qu'aarshi a ajouté et supprime les pages, sections ou composants sélectionnés. `--all` et `--yes` évitent la sélection. |
 | `aarshi restore` | Recopie ce que la dernière commande `remove` a retiré. |
 | `aarshi docs` | Ouvre la documentation hors ligne dans le navigateur. |
+| `aarshi update [--check]` | Remplace le binaire installé par la dernière release GitHub. `--check` indique seulement la version disponible. |
 
 Chaque commande demande les valeurs qui ne sont pas passées en option.
 
