@@ -202,16 +202,16 @@ export default RootLayout;
     .to_string()
 }
 
-/// Language picker built from `ButtonGroup`. Base UI warns against rendering a `Button`
-/// as a link, so the links take the button styles instead. Client navigation, no reload.
+/// Language picker built from the Base UI `Menu`, so it works with or without shadcn.
+/// Each language is a menu item rendered as a `Link`, so navigation stays client-side.
 pub fn language_switcher() -> String {
     r#""use client";
 
+import { Menu } from "@base-ui/react/menu";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { buttonVariants } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { languages, type Locale } from "@/lib/i18n/config";
 
 const languageName = (code: string, locale: string): string => {
@@ -225,23 +225,27 @@ const LanguageSwitcher = ({ locale }: { locale: Locale }) => {
   const hrefFor = (code: Locale) => (page ? `/${code}/${page}` : `/${code}`);
 
   return (
-    <ButtonGroup aria-label="Language">
-      {languages.map((code) => (
-        <Link
-          key={code}
-          href={hrefFor(code)}
-          hrefLang={code}
-          data-slot="button"
-          aria-current={code === locale ? "true" : undefined}
-          className={buttonVariants({
-            variant: code === locale ? "secondary" : "ghost",
-            size: "sm",
-          })}
-        >
-          {languageName(code, code)}
-        </Link>
-      ))}
-    </ButtonGroup>
+    <Menu.Root>
+      <Menu.Trigger className={buttonVariants({ variant: "outline", size: "sm" })}>
+        {languageName(locale, locale)}
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner sideOffset={4}>
+          <Menu.Popup className="min-w-32 rounded-md border border-neutral-200 bg-white p-1 shadow-md outline-none">
+            {languages.map((code) => (
+              <Menu.Item
+                key={code}
+                render={<Link href={hrefFor(code)} hrefLang={code} />}
+                aria-current={code === locale ? "true" : undefined}
+                className="block cursor-pointer rounded-sm px-3 py-1.5 text-sm outline-none data-[highlighted]:bg-neutral-100"
+              >
+                {languageName(code, code)}
+              </Menu.Item>
+            ))}
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   );
 };
 

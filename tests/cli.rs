@@ -24,7 +24,7 @@ if [ "$1" = "create" ]; then
     *) : > "$3/package-lock.json" ;;
   esac
   printf 'export default [];\n' > "$3/eslint.config.mjs"
-  printf 'export default {};\n' > "$3/postcss.config.mjs"
+  printf 'export default { plugins: { "@tailwindcss/postcss": {} } };\n' > "$3/postcss.config.mjs"
 fi
 "#;
 
@@ -66,6 +66,8 @@ impl Sandbox {
             .env("HOME", &self.home)
             .env("AARSHI_TEST_LOG", &self.log)
             .env("AARSHI_NO_HEADER", "1")
+            .env("AARSHI_NO_OPEN", "1")
+            .env("TMPDIR", &self.root)
             .output()
             .unwrap()
     }
@@ -192,16 +194,28 @@ fn write_base_files(root: &Path) {
             "const pages = [\"/\",\n  // aarshi:pages:end\n];\n",
         ),
         ("app/robots.ts", "export const robots = [];\n"),
-        ("lib/site.ts", "export const SITE_URL = \"https://example.com\";\n"),
-        ("components/language-switcher.tsx", "import Link from \"next/link\";\n"),
+        (
+            "lib/site.ts",
+            "export const SITE_URL = \"https://example.com\";\n",
+        ),
+        (
+            "components/language-switcher.tsx",
+            "import Link from \"next/link\";\n",
+        ),
         ("tsconfig.json", "{}\n"),
         ("eslint.config.mjs", "export default [];\n"),
-        ("postcss.config.mjs", "export default {};\n"),
+        (
+            "postcss.config.mjs",
+            "export default { plugins: { \"@tailwindcss/postcss\": {} } };\n",
+        ),
         (
             "next.config.ts",
             "const nextConfig = {\n  async redirects() {\n    return [{ source: \"/\", destination: \"/fr\", permanent: false }];\n  },\n  cacheComponents: false,\n};\n\nexport default nextConfig;\n",
         ),
-        ("components/ui/button.tsx", "export const Button = () => null;\n"),
+        (
+            "components/ui/button.tsx",
+            "export const Button = () => null;\n",
+        ),
         (
             "components/ui/button-group.tsx",
             "export const ButtonGroup = () => null;\n",
@@ -229,7 +243,9 @@ fn write_base_files(root: &Path) {
 /// inventory with consistent config and complete dictionaries. The project
 /// lives in a `project/` subfolder to stay clear of the sandbox files.
 fn i18n_project(name: &str) -> PathBuf {
-    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name).join("project");
+    let root = Path::new(env!("CARGO_TARGET_TMPDIR"))
+        .join(name)
+        .join("project");
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("lib/i18n/dictionaries")).unwrap();
     fs::write(
@@ -251,7 +267,11 @@ fn i18n_project(name: &str) -> PathBuf {
 fn broken_project(name: &str) -> PathBuf {
     let root = i18n_project(name);
     fs::remove_file(root.join("lib/i18n/dictionaries/en.ts")).unwrap();
-    write_dictionary(&root, "fr", &[("home.title", "Accueil"), ("home.intro", " ")]);
+    write_dictionary(
+        &root,
+        "fr",
+        &[("home.title", "Accueil"), ("home.intro", " ")],
+    );
     root
 }
 
@@ -259,7 +279,11 @@ fn broken_project(name: &str) -> PathBuf {
 /// dictionaries, so no key is missing.
 fn todo_project(name: &str) -> PathBuf {
     let root = i18n_project(name);
-    write_dictionary(&root, "fr", &[("home.title", "Accueil"), ("home.intro", "")]);
+    write_dictionary(
+        &root,
+        "fr",
+        &[("home.title", "Accueil"), ("home.intro", "")],
+    );
     write_dictionary(&root, "en", &[("home.title", "Home"), ("home.intro", "")]);
     root
 }
@@ -353,7 +377,10 @@ fn status_counts_whitespace_values_as_empty() {
         report.contains("todo: en has an empty translation for `intro.text`"),
         "{report}"
     );
-    assert!(report.contains("✓ project is conformant (2 to do)"), "{report}");
+    assert!(
+        report.contains("✓ project is conformant (2 to do)"),
+        "{report}"
+    );
 }
 
 #[test]
@@ -386,7 +413,9 @@ fn status_reports_a_languages_mismatch() {
     let report = stdout(&output);
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        report.contains("error: lib/i18n/config.ts lists [\"fr\"], but aarshi.toml lists [\"fr\", \"en\"]"),
+        report.contains(
+            "error: lib/i18n/config.ts lists [\"fr\"], but aarshi.toml lists [\"fr\", \"en\"]"
+        ),
         "{report}"
     );
 }
@@ -450,7 +479,11 @@ fn an_unknown_dimension_is_a_usage_error() {
 
     let output = sandbox.run(&project, &["status", "--dimension", "nope"]);
     assert_eq!(output.status.code(), Some(2));
-    assert!(stderr(&output).contains("invalid value 'nope'"), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("invalid value 'nope'"),
+        "{}",
+        stderr(&output)
+    );
     assert!(stdout(&output).is_empty());
 }
 
@@ -646,7 +679,11 @@ fn status_human_output_reports_hidden_findings_under_a_filter() {
     );
     assert_eq!(stdout(&repeated), stdout(&output));
     let listed = sandbox.run(&project, &["status", "--dimension", "pages,components"]);
-    assert!(stdout(&listed).starts_with("pages ✓\ncomponents ✓\n"), "{}", stdout(&listed));
+    assert!(
+        stdout(&listed).starts_with("pages ✓\ncomponents ✓\n"),
+        "{}",
+        stdout(&listed)
+    );
     // The exit code still comes from the hidden errors of the whole project.
     assert_eq!(listed.status.code(), Some(1));
 }
@@ -678,7 +715,10 @@ fn status_reports_empty_translations_until_they_are_filled() {
         report.contains("todo: de has an empty translation for `home.title`"),
         "{report}"
     );
-    assert!(report.contains("✓ project is conformant (3 to do)"), "{report}");
+    assert!(
+        report.contains("✓ project is conformant (3 to do)"),
+        "{report}"
+    );
 
     for locale in ["fr", "en", "de"] {
         let path = project.join(format!("lib/i18n/dictionaries/{locale}.ts"));
@@ -870,13 +910,14 @@ fn setup_puts_the_default_language_at_root_and_others_under_their_prefix() {
     assert!(read(&project.join("lib/i18n/config.ts")).contains("defaultLocale: Locale = \"fr\""));
     let config = read(&project.join("next.config.ts"));
     assert!(config.contains("destination: \"/fr\""), "{config}");
+    let switcher = read(&project.join("components/language-switcher.tsx"));
     assert!(
-        read(&project.join("components/language-switcher.tsx")).contains("ButtonGroup"),
-        "the switcher uses the UI components"
+        switcher.contains("from \"@base-ui/react/menu\""),
+        "the switcher is a Base UI menu"
     );
     assert!(
-        read(&project.join("components/language-switcher.tsx")).contains("buttonVariants"),
-        "links take the button styles"
+        switcher.contains("buttonVariants"),
+        "the trigger takes the button styles"
     );
 }
 
@@ -1126,12 +1167,18 @@ fn add_lang_preserves_the_extended_config_keys() {
     assert!(output.status.success(), "{}", stderr(&output));
 
     let config = read(&project.join("aarshi.toml"));
-    assert!(config.contains("languages = [\"fr\", \"en\", \"de\"]"), "{config}");
+    assert!(
+        config.contains("languages = [\"fr\", \"en\", \"de\"]"),
+        "{config}"
+    );
     assert!(config.contains("package_manager = \"npm\""), "{config}");
     assert!(config.contains("ui = \"base-ui\""), "{config}");
     assert!(config.contains("icons = \"lucide\""), "{config}");
     assert!(config.contains("cache_components = true"), "{config}");
-    assert!(config.contains("site_url = \"https://example.com\""), "{config}");
+    assert!(
+        config.contains("site_url = \"https://example.com\""),
+        "{config}"
+    );
 }
 
 #[test]
@@ -1139,7 +1186,11 @@ fn extended_config_parses_an_old_format_file() {
     let sandbox = Sandbox::new("config-old-format");
     let project = sandbox.setup("site", &[]);
     // A project generated before the extension only carries `languages`.
-    fs::write(project.join("aarshi.toml"), "languages = [\"fr\", \"en\"]\n").unwrap();
+    fs::write(
+        project.join("aarshi.toml"),
+        "languages = [\"fr\", \"en\"]\n",
+    )
+    .unwrap();
 
     let output = sandbox.run(&project, &["add-lang", "de"]);
     assert!(output.status.success(), "{}", stderr(&output));
@@ -1232,7 +1283,9 @@ fn status_reports_a_default_locale_mismatch() {
     let report = stdout(&output);
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        report.contains("error: lib/i18n/config.ts defaults to `en`, but aarshi.toml defaults to `fr`"),
+        report.contains(
+            "error: lib/i18n/config.ts defaults to `en`, but aarshi.toml defaults to `fr`"
+        ),
         "{report}"
     );
     // The direction table is still consistent: no extra finding.
@@ -1252,7 +1305,10 @@ fn status_reports_a_missing_default_locale() {
 
     let output = sandbox.run(&project, &["status"]);
     let report = stdout(&output);
-    assert!(report.contains("error: lib/i18n/config.ts has no defaultLocale"), "{report}");
+    assert!(
+        report.contains("error: lib/i18n/config.ts has no defaultLocale"),
+        "{report}"
+    );
 }
 
 #[test]
@@ -1287,8 +1343,7 @@ fn status_reports_a_direction_entry_missing_for_a_language() {
     let project = i18n_project("status-direction-missing");
     fs::write(
         project.join("lib/i18n/config.ts"),
-        read(&project.join("lib/i18n/config.ts"))
-            .replace("\n  en: \"ltr\"\n};", "\n};"),
+        read(&project.join("lib/i18n/config.ts")).replace("\n  en: \"ltr\"\n};", "\n};"),
     )
     .unwrap();
 
@@ -1325,7 +1380,10 @@ fn status_checks_the_imports_of_index_ts_per_language() {
     fs::write(
         project.join("lib/i18n/index.ts"),
         read(&project.join("lib/i18n/index.ts"))
-            .replace("import { messages as en } from \"./dictionaries/en\";\n", "")
+            .replace(
+                "import { messages as en } from \"./dictionaries/en\";\n",
+                "",
+            )
             .replace("{ fr, en }", "{ fr, pod }"),
     )
     .unwrap();
@@ -1399,9 +1457,15 @@ fn status_reports_a_missing_index_file_without_stopping_the_report() {
     let output = sandbox.run(&project, &["status"]);
     let report = stdout(&output);
     assert_eq!(output.status.code(), Some(1));
-    assert!(report.contains("error: lib/i18n/index.ts is missing or unreadable"), "{report}");
+    assert!(
+        report.contains("error: lib/i18n/index.ts is missing or unreadable"),
+        "{report}"
+    );
     // No early stop: the report still renders every dimension.
-    assert!(report.contains("pages ✓\nsections ✓\ncomponents ✓\ndependencies ✓"), "{report}");
+    assert!(
+        report.contains("pages ✓\nsections ✓\ncomponents ✓\ndependencies ✓"),
+        "{report}"
+    );
     // The gone file is an i18n object (0013): the i18n dimension reports it
     // alone, the base inventory stays silent (0030 reconciliation).
     assert!(report.contains("error: 1 error"), "{report}");
@@ -1443,7 +1507,11 @@ fn status_reports_duplicate_keys_in_each_dictionary() {
 fn status_reports_a_key_extra_in_a_non_default_dictionary() {
     let sandbox = Sandbox::new("status-key-extra");
     let project = i18n_project("status-key-extra");
-    write_dictionary(&project, "en", &[("home.title", "Home"), ("extra.text", "Extras")]);
+    write_dictionary(
+        &project,
+        "en",
+        &[("home.title", "Home"), ("extra.text", "Extras")],
+    );
 
     let output = sandbox.run(&project, &["status"]);
     let report = stdout(&output);
@@ -1453,7 +1521,10 @@ fn status_reports_a_key_extra_in_a_non_default_dictionary() {
         report.contains("todo: en has an extra translation for `extra.text`"),
         "{report}"
     );
-    assert!(report.contains("✓ project is conformant (1 to do)"), "{report}");
+    assert!(
+        report.contains("✓ project is conformant (1 to do)"),
+        "{report}"
+    );
 
     // The JSON carries the detail: the default dictionary is the reference.
     let output = sandbox.run(&project, &["status", "--json"]);
@@ -1494,7 +1565,10 @@ fn status_reports_a_missing_config_file_without_stopping_the_report() {
         "{report}"
     );
     // No early stop: the dictionaries are still walked on the same run.
-    assert!(report.contains("pages ✓\nsections ✓\ncomponents ✓\ndependencies ✓"), "{report}");
+    assert!(
+        report.contains("pages ✓\nsections ✓\ncomponents ✓\ndependencies ✓"),
+        "{report}"
+    );
 }
 
 /// A dictionary mixing a duplicate (`error`), an empty value and an extra
@@ -1981,6 +2055,92 @@ fn status_config(sandbox: &Sandbox, project: &Path) -> Output {
 }
 
 #[test]
+fn config_accepts_tailwind_wired_through_the_turbopack_loader() {
+    let sandbox = Sandbox::new("config-tailwind-turbopack");
+    let project = i18n_project("config-tailwind-turbopack");
+    fs::remove_file(project.join("postcss.config.mjs")).unwrap();
+    let next_config = read(&project.join("next.config.ts")).replace(
+        "cacheComponents: false,",
+        "cacheComponents: false,\n  turbopack: { rules: { \"*.css\": { loaders: [\"@tailwindcss/turbopack\"], as: \"*.css\" } } },",
+    );
+    fs::write(project.join("next.config.ts"), next_config).unwrap();
+
+    let output = status_config(&sandbox, &project);
+    assert_eq!(output.status.code(), Some(0), "{}", stdout(&output));
+    assert!(!stdout(&output).contains("Tailwind"), "{}", stdout(&output));
+}
+
+#[test]
+fn config_accepts_tailwind_wired_through_a_postcss_config_of_any_extension() {
+    let sandbox = Sandbox::new("config-tailwind-postcss-js");
+    let project = i18n_project("config-tailwind-postcss-js");
+    fs::remove_file(project.join("postcss.config.mjs")).unwrap();
+    fs::write(
+        project.join("postcss.config.js"),
+        "module.exports = { plugins: { \"@tailwindcss/postcss\": {} } };\n",
+    )
+    .unwrap();
+
+    let output = status_config(&sandbox, &project);
+    assert_eq!(output.status.code(), Some(0), "{}", stdout(&output));
+}
+
+#[test]
+fn config_reports_tailwind_when_nothing_wires_it() {
+    let sandbox = Sandbox::new("config-tailwind-missing");
+    let project = i18n_project("config-tailwind-missing");
+    fs::remove_file(project.join("postcss.config.mjs")).unwrap();
+
+    let output = status_config(&sandbox, &project);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stdout(&output).contains("error: Tailwind is not wired"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn docs_writes_the_pages_and_empties_the_folder_on_each_call() {
+    let sandbox = Sandbox::new("docs");
+    let docs = sandbox.root.join("aarshi-docs");
+    fs::create_dir_all(&docs).unwrap();
+    fs::write(docs.join("stale.html"), "old").unwrap();
+
+    let output = sandbox.run(&sandbox.root, &["docs"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("documentation written to"),
+        "{}",
+        stdout(&output)
+    );
+    assert!(!docs.join("stale.html").exists());
+    assert!(docs.join("style.css").is_file());
+    for page in [
+        "index",
+        "config",
+        "commands",
+        "workflow",
+        "status",
+        "troubleshooting",
+        "contributing",
+    ] {
+        assert!(
+            docs.join("en").join(format!("{page}.html")).is_file(),
+            "missing en/{page}"
+        );
+        assert!(
+            docs.join("fr").join(format!("{page}.html")).is_file(),
+            "missing fr/{page}"
+        );
+    }
+    let french = read(&docs.join("fr/config.html"));
+    assert!(french.contains("<html lang=\"fr\">"));
+    assert!(french.contains("href=\"index.html\""), "sidebar links");
+    assert!(read(&docs.join("en/index.html")).contains("<html lang=\"en\">"));
+}
+
+#[test]
 fn config_reports_each_missing_base_file() {
     let sandbox = Sandbox::new("config-file-missing");
     let project = i18n_project("config-file-missing");
@@ -1995,9 +2155,15 @@ fn config_reports_each_missing_base_file() {
         report.contains("error: missing `app/[locale]/layout.tsx`"),
         "{report}"
     );
-    assert!(report.contains("error: missing `tsconfig.json`"), "{report}");
+    assert!(
+        report.contains("error: missing `tsconfig.json`"),
+        "{report}"
+    );
     // Dirs are objects too: a missing folder is a finding, not a stop.
-    assert!(report.contains("error: missing `components/custom/`"), "{report}");
+    assert!(
+        report.contains("error: missing `components/custom/`"),
+        "{report}"
+    );
 }
 
 #[test]
@@ -2014,7 +2180,6 @@ fn config_reports_a_project_without_base_files_and_still_exits_one() {
         "components/language-switcher.tsx",
         "tsconfig.json",
         "eslint.config.mjs",
-        "postcss.config.mjs",
         "next.config.ts",
     ] {
         fs::remove_file(project.join(file)).unwrap();
@@ -2029,7 +2194,7 @@ fn config_reports_a_project_without_base_files_and_still_exits_one() {
     // reconciliation), so they leave this count to `i18n.errors`.
     assert_eq!(
         stdout(&output).matches("error: missing `").count(),
-        11,
+        10,
         "{}",
         stdout(&output)
     );
@@ -2054,8 +2219,7 @@ fn config_reports_a_missing_pages_marker_in_the_sitemap() {
     let output = status_config(&sandbox, &project);
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        stdout(&output)
-            .contains("error: app/sitemap.ts has no `// aarshi:pages:end` marker"),
+        stdout(&output).contains("error: app/sitemap.ts has no `// aarshi:pages:end` marker"),
         "{}",
         stdout(&output)
     );
@@ -2075,9 +2239,8 @@ fn config_checks_the_slash_redirect_against_the_default_language() {
     let output = status_config(&sandbox, &project);
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        stdout(&output).contains(
-            "error: next.config.ts redirects \"/\" to \"/de\", expected \"/fr\""
-        ),
+        stdout(&output)
+            .contains("error: next.config.ts redirects \"/\" to \"/de\", expected \"/fr\""),
         "{}",
         stdout(&output)
     );
@@ -2119,7 +2282,10 @@ fn config_reports_each_missing_key_of_an_old_format_project_file() {
     let output = sandbox.run(&project, &["status"]);
     assert_eq!(output.status.code(), Some(0));
     let report = stdout(&output);
-    assert!(report.contains("✓ project is conformant (4 to do)"), "{report}");
+    assert!(
+        report.contains("✓ project is conformant (4 to do)"),
+        "{report}"
+    );
     assert!(
         report.contains("todo: aarshi.toml is missing the `ui` key"),
         "{report}"
@@ -2133,10 +2299,10 @@ fn config_reports_each_missing_key_of_an_old_format_project_file() {
     let findings = config["findings"].as_array().unwrap();
     assert_eq!(findings.len(), 4, "{}", stdout(&output));
     assert!(
-        findings
-            .iter()
-            .all(|finding| finding["rule"] == "config.project-file-incomplete"
-                && finding["severity"] == "todo"),
+        findings.iter().all(
+            |finding| finding["rule"] == "config.project-file-incomplete"
+                && finding["severity"] == "todo"
+        ),
         "{}",
         stdout(&output)
     );
@@ -2160,8 +2326,7 @@ fn config_checks_cache_components_against_next_config() {
     let output = status_config(&sandbox, &project);
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        stdout(&output)
-            .contains("error: next.config.ts does not enable `cacheComponents`"),
+        stdout(&output).contains("error: next.config.ts does not enable `cacheComponents`"),
         "{}",
         stdout(&output)
     );
@@ -2180,8 +2345,7 @@ fn config_checks_cache_components_against_next_config() {
     let output = status_config(&sandbox, &project);
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        stdout(&output)
-            .contains("error: next.config.ts enables `cacheComponents`"),
+        stdout(&output).contains("error: next.config.ts enables `cacheComponents`"),
         "{}",
         stdout(&output)
     );
@@ -2227,8 +2391,7 @@ fn config_checks_the_ui_option() {
     let output = status_config(&sandbox, &project);
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        stdout(&output)
-            .contains("error: package.json does not declare `@base-ui/react`"),
+        stdout(&output).contains("error: package.json does not declare `@base-ui/react`"),
         "{}",
         stdout(&output)
     );
@@ -2301,8 +2464,7 @@ fn config_checks_the_icons_option() {
     let output = status_config(&sandbox, &project);
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        stdout(&output)
-            .contains("error: package.json does not declare `lucide-react`"),
+        stdout(&output).contains("error: package.json does not declare `lucide-react`"),
         "{}",
         stdout(&output)
     );
@@ -2330,8 +2492,9 @@ fn config_reports_a_broken_import_in_a_base_file() {
     assert_eq!(output.status.code(), Some(1));
     let report = stdout(&output);
     assert!(
-        report
-            .contains("error: app/[locale]/layout.tsx imports `@/lib/nope`, but the file does not exist"),
+        report.contains(
+            "error: app/[locale]/layout.tsx imports `@/lib/nope`, but the file does not exist"
+        ),
         "{report}"
     );
     // Asset imports (`.css`, …) stay out of the textual reach of v1.
@@ -2361,7 +2524,11 @@ fn config_reports_a_broken_import_in_a_base_file() {
     );
     let output = status_config(&sandbox, &project);
     assert!(output.status.success(), "{}", stdout(&output));
-    assert!(!stdout(&output).contains("nope/thing"), "{}", stdout(&output));
+    assert!(
+        !stdout(&output).contains("nope/thing"),
+        "{}",
+        stdout(&output)
+    );
 }
 
 #[test]
@@ -2378,8 +2545,9 @@ fn config_reads_single_quoted_and_escaping_imports_of_a_base_file() {
     let output = status_config(&sandbox, &project);
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        stdout(&output)
-            .contains("error: app/[locale]/layout.tsx imports `@/lib/nope`, but the file does not exist"),
+        stdout(&output).contains(
+            "error: app/[locale]/layout.tsx imports `@/lib/nope`, but the file does not exist"
+        ),
         "{}",
         stdout(&output)
     );
@@ -3228,7 +3396,11 @@ fn home_view_with(import: &str) -> String {
 fn status_reports_an_undeclared_npm_package() {
     let sandbox = Sandbox::new("dependencies-package-missing");
     let project = dependencies_project("dependencies-package-missing");
-    write_view(&project, "home", &home_view_with("import { House } from \"lucide-react\";"));
+    write_view(
+        &project,
+        "home",
+        &home_view_with("import { House } from \"lucide-react\";"),
+    );
 
     let json = sandbox.run(&project, &["status", "--json"]);
     assert_eq!(json.status.code(), Some(1));
@@ -3248,14 +3420,16 @@ fn status_reports_an_undeclared_npm_package() {
         finding["detail"].as_str().unwrap(),
         "imported in views/home/home.view.tsx"
     );
-    assert_eq!(finding["location"]["file"].as_str().unwrap(), "package.json");
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "package.json"
+    );
 
     // The human report keeps the import out of the view's own dimension.
     let human = sandbox.run(&project, &["status"]);
     let report = stdout(&human);
     assert!(
-        report
-            .contains("dependencies\n  error: `lucide-react` is not declared in package.json\n"),
+        report.contains("dependencies\n  error: `lucide-react` is not declared in package.json\n"),
         "{report}"
     );
 }
@@ -3265,7 +3439,11 @@ fn status_reports_a_scoped_package_by_its_root_name() {
     // `@base-ui/react/button` names the package `@base-ui/react`.
     let sandbox = Sandbox::new("dependencies-package-scoped");
     let project = dependencies_project("dependencies-package-scoped");
-    write_view(&project, "home", &home_view_with("import { Button } from \"@base-ui/react/button\";"));
+    write_view(
+        &project,
+        "home",
+        &home_view_with("import { Button } from \"@base-ui/react/button\";"),
+    );
 
     let output = sandbox.run(&project, &["status", "--json"]);
     let findings = dependencies_findings(&output);
@@ -3285,12 +3463,24 @@ fn status_reports_a_scoped_package_by_its_root_name() {
 fn status_accepts_a_package_declared_in_dev_dependencies() {
     let sandbox = Sandbox::new("dependencies-package-dev");
     let project = dependencies_project("dependencies-package-dev");
-    write_package_json(&project, &[("next", "15.0.0")], &[("lucide-react", "1.0.0")]);
-    write_view(&project, "home", &home_view_with("import { House } from \"lucide-react\";"));
+    write_package_json(
+        &project,
+        &[("next", "15.0.0")],
+        &[("lucide-react", "1.0.0")],
+    );
+    write_view(
+        &project,
+        "home",
+        &home_view_with("import { House } from \"lucide-react\";"),
+    );
 
     let output = sandbox.run(&project, &["status"]);
     assert_eq!(output.status.code(), Some(0));
-    assert!(stdout(&output).contains("dependencies ✓"), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains("dependencies ✓"),
+        "{}",
+        stdout(&output)
+    );
 }
 
 #[test]
@@ -3301,7 +3491,11 @@ fn status_treats_a_bare_import_as_a_package_not_a_local_file() {
     let project = dependencies_project("dependencies-package-shadow");
     fs::create_dir_all(project.join("lib")).unwrap();
     fs::write(project.join("lib/util.ts"), "export const util = 1;\n").unwrap();
-    write_view(&project, "home", &home_view_with("import { util } from \"util\";"));
+    write_view(
+        &project,
+        "home",
+        &home_view_with("import { util } from \"util\";"),
+    );
 
     let output = sandbox.run(&project, &["status", "--json"]);
     let findings = dependencies_findings(&output);
@@ -3355,7 +3549,11 @@ fn status_parks_a_package_import_in_dependencies_not_in_the_files_dimension() {
 fn status_groups_the_importers_of_one_undeclared_package() {
     let sandbox = Sandbox::new("dependencies-package-shared");
     let project = dependencies_project("dependencies-package-shared");
-    write_view(&project, "home", &home_view_with("import { command } from \"lucide-react\";"));
+    write_view(
+        &project,
+        "home",
+        &home_view_with("import { command } from \"lucide-react\";"),
+    );
     fs::write(
         project.join("lib/i18n/index.ts"),
         format!(
@@ -3405,7 +3603,13 @@ fn status_checks_the_lockfile_against_the_package_manager() {
 
         // Nominal: the manager's own lockfile stays silent.
         let consistent = sandbox.run(&project, &["status", "--json"]);
-        assert_eq!(consistent.status.code(), Some(0), "{}: {}", manager, stdout(&consistent));
+        assert_eq!(
+            consistent.status.code(),
+            Some(0),
+            "{}: {}",
+            manager,
+            stdout(&consistent)
+        );
         assert!(
             dependencies_findings(&consistent).is_empty(),
             "{manager}/{lockfile}: {}",
@@ -3421,7 +3625,13 @@ fn status_checks_the_lockfile_against_the_package_manager() {
         };
         fs::write(project.join(wrong), "{}\n").unwrap();
         let inconsistent = sandbox.run(&project, &["status", "--json"]);
-        assert_eq!(inconsistent.status.code(), Some(1), "{}: {}", manager, stdout(&inconsistent));
+        assert_eq!(
+            inconsistent.status.code(),
+            Some(1),
+            "{}: {}",
+            manager,
+            stdout(&inconsistent)
+        );
         let findings = dependencies_findings(&inconsistent);
         assert_eq!(findings.len(), 1, "{manager}: {}", stdout(&inconsistent));
         let finding = &findings[0];
@@ -3432,9 +3642,14 @@ fn status_checks_the_lockfile_against_the_package_manager() {
         assert_eq!(finding["severity"].as_str().unwrap(), "error");
         assert_eq!(
             finding["summary"].as_str().unwrap(),
-            format!("`{wrong}` is present, but aarshi.toml declares the `{manager}` package manager")
+            format!(
+                "`{wrong}` is present, but aarshi.toml declares the `{manager}` package manager"
+            )
         );
-        assert_eq!(finding["detail"].as_str().unwrap(), format!("expected {expected}"));
+        assert_eq!(
+            finding["detail"].as_str().unwrap(),
+            format!("expected {expected}")
+        );
         assert_eq!(finding["location"]["file"].as_str().unwrap(), wrong);
     }
 }
@@ -3459,9 +3674,15 @@ fn status_reports_missing_node_modules_as_a_todo() {
         "dependencies.modules-missing"
     );
     assert_eq!(finding["severity"].as_str().unwrap(), "todo");
-    assert_eq!(finding["summary"].as_str().unwrap(), "`node_modules/` is missing");
+    assert_eq!(
+        finding["summary"].as_str().unwrap(),
+        "`node_modules/` is missing"
+    );
     assert_eq!(finding["detail"].as_str().unwrap(), "run npm install");
-    assert_eq!(finding["location"]["file"].as_str().unwrap(), "node_modules/");
+    assert_eq!(
+        finding["location"]["file"].as_str().unwrap(),
+        "node_modules/"
+    );
 
     // The human report and the verdict stay green.
     let human = sandbox.run(&project, &["status"]);
@@ -3490,14 +3711,22 @@ fn status_absorbs_an_unreadable_package_json() {
     fs::remove_file(project.join("package.json")).unwrap();
     let output = sandbox.run(&project, &["status"]);
     assert_eq!(output.status.code(), Some(0));
-    assert!(stdout(&output).contains("dependencies ✓"), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains("dependencies ✓"),
+        "{}",
+        stdout(&output)
+    );
 
     // Invalid JSON is absorbed the same way.
     let project = dependencies_project("dependencies-absorbed");
     fs::write(project.join("package.json"), "not json\n").unwrap();
     let output = sandbox.run(&project, &["status"]);
     assert_eq!(output.status.code(), Some(0));
-    assert!(stdout(&output).contains("dependencies ✓"), "{}", stdout(&output));
+    assert!(
+        stdout(&output).contains("dependencies ✓"),
+        "{}",
+        stdout(&output)
+    );
 }
 
 // ==== `status` (transverse recipe, 0030) ==================================
@@ -3510,7 +3739,9 @@ fn status_absorbs_an_unreadable_package_json() {
 #[test]
 fn recipe_a_project_carried_to_nothing_still_produces_the_full_report() {
     let sandbox = Sandbox::new("recipe-bare");
-    let project = Path::new(env!("CARGO_TARGET_TMPDIR")).join("recipe-bare").join("project");
+    let project = Path::new(env!("CARGO_TARGET_TMPDIR"))
+        .join("recipe-bare")
+        .join("project");
     let _ = fs::remove_dir_all(&project);
     fs::create_dir_all(&project).unwrap();
     fs::write(
@@ -3535,7 +3766,6 @@ fn recipe_a_project_carried_to_nothing_still_produces_the_full_report() {
          \x20 error: missing `eslint.config.mjs`\n\
          \x20 error: missing `lib/site.ts`\n\
          \x20 error: missing `next.config.ts`\n\
-         \x20 error: missing `postcss.config.mjs`\n\
          \x20 error: missing `tsconfig.json`\n\
          i18n\n\
          \x20 error: lib/i18n/config.ts is missing or unreadable\n\
@@ -3547,7 +3777,7 @@ fn recipe_a_project_carried_to_nothing_still_produces_the_full_report() {
          components ✓\n\
          dependencies ✓\n\
          \n\
-         error: 17 errors, 0 to do\n"
+         error: 16 errors, 0 to do\n"
     );
 }
 

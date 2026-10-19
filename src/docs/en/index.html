@@ -1,0 +1,59 @@
+<h1>aarshi documentation</h1>
+<p class="lead">aarshi creates a multilingual Next.js website for you, then helps you keep it in order.</p>
+
+<h2>What is aarshi?</h2>
+<p>A Next.js website is many files: pages, texts in several languages, components, a sitemap for search engines. aarshi writes the starting files and gives you short commands to add pages, sections, languages and icons, without copying files by hand.</p>
+<p>You do not need to know Next.js to start. The other pages of this documentation are listed in the sidebar:</p>
+<dl>
+  <dt>The aarshi.toml file</dt>
+  <dd>What the settings file of a project contains, and which values you can change.</dd>
+  <dt>Commands</dt>
+  <dd>Every command, with <code>aarshi add</code> explained step by step.</dd>
+  <dt>Example workflow</dt>
+  <dd>A tutorial that builds a page from start to finish, using almost every command.</dd>
+  <dt>Checking a project</dt>
+  <dd><code>aarshi status</code>: what it reports, its exit codes and its options.</dd>
+  <dt>Troubleshooting</dt>
+  <dd>The messages you are most likely to meet, and what to do about them.</dd>
+</dl>
+
+<h2>Before you start</h2>
+<ul>
+  <li><strong>Node.js</strong>, the JavaScript runtime that Next.js runs on.</li>
+  <li>A <strong>package manager</strong>: npm (installed with Node.js), pnpm, yarn or bun.</li>
+  <li>An <strong>internet connection</strong> during <code>setup</code>, because the project and its dependencies are downloaded.</li>
+  <li>A terminal. Every command in this documentation is typed in it.</li>
+</ul>
+
+<h2>Install aarshi</h2>
+<p>aarshi is written in Rust and is not published yet. For now, build it from the repository:</p>
+<pre><code>cargo install --path .</code></pre>
+<p>Then check that it answers:</p>
+<pre><code>aarshi --version</code></pre>
+
+<h2>Create your first site</h2>
+<ol class="steps">
+  <li>Run <code>aarshi setup my-site</code>. aarshi asks about the languages, the default language, the site URL, the package manager, the UI components and the icons. Press Enter to keep the suggested answer.</li>
+  <li>Go into the folder: <code>cd my-site</code>.</li>
+  <li>Start the development server with your package manager, for example <code>npm run dev</code>.</li>
+  <li>Open <code>http://localhost:3000</code> in your browser. The site redirects you to its default language.</li>
+</ol>
+<div class="card tip">
+  <strong>Tip.</strong> Add <code>--yes</code> to accept every default without answering questions: <code>aarshi setup my-site --yes</code>. The folder name is still required.
+</div>
+
+<h2>The words you will meet</h2>
+<dl>
+  <dt>Language and prefix</dt>
+  <dd>Each language of the site has a prefix in the address: <code>/fr</code> for French, <code>/en</code> for English. The default language is the one served at <code>/</code>.</dd>
+  <dt>Dictionary</dt>
+  <dd>A file that holds every text of the site in one language, for example <code>lib/i18n/dictionaries/fr.ts</code>. Every language has one, with the same keys, so a missing translation shows up.</dd>
+  <dt>View</dt>
+  <dd>What a page shows, written in <code>views/&lt;page&gt;/</code>. A view is assembled from sections.</dd>
+  <dt>Section</dt>
+  <dd>One block of a page, such as a hero, a list of projects or a footer. Each section is one file in <code>views/&lt;page&gt;/sections/</code>.</dd>
+  <dt>Route</dt>
+  <dd>The file that makes a page reachable at an address, for example <code>app/[locale]/about/page.tsx</code> for <code>/about</code>. A route displays a view.</dd>
+  <dt>Component</dt>
+  <dd>A reusable piece of interface, such as a button. Your own components go in <code>components/custom/</code>, converted icons in <code>components/icons/</code>.</dd>
+</dl>

@@ -19,8 +19,15 @@ const BASE_FILES: &[&str] = &[
     "components/language-switcher.tsx",
     "tsconfig.json",
     "eslint.config.mjs",
-    "postcss.config.mjs",
     "next.config.ts",
+];
+
+/// The PostCSS configs that can wire Tailwind, in the order Next.js looks for them.
+const POSTCSS_CONFIGS: &[&str] = &[
+    "postcss.config.mjs",
+    "postcss.config.js",
+    "postcss.config.cjs",
+    "postcss.config.ts",
 ];
 
 /// The base folders; `.gitkeep` is not required, the folder itself is. The
@@ -122,6 +129,7 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
     if let Some(content) = &next_config {
         check_redirect(content, config, findings);
         check_cache_components(content, config, findings);
+        check_tailwind(root, content, findings);
     }
 
     if let Some(content) = &site {
@@ -183,6 +191,34 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
     }
 }
 
+/// Tailwind is wired either by the Turbopack loader in `next.config.ts` or by a
+/// PostCSS config that names `@tailwindcss/postcss`.
+fn check_tailwind(root: &Path, next_config: &str, findings: &mut Vec<Finding>) {
+    if next_config.contains("@tailwindcss/turbopack") {
+        return;
+    }
+    let postcss = POSTCSS_CONFIGS.iter().any(|file| {
+        read(root.join(file)).is_some_and(|content| content.contains("@tailwindcss/postcss"))
+    });
+    if postcss {
+        return;
+    }
+    findings.push(Finding {
+        dimension: Dimension::Config,
+        rule: "config.tailwind-missing",
+        severity: Severity::Error,
+        summary: "Tailwind is not wired".to_string(),
+        detail: Some(
+            "add `@tailwindcss/turbopack` to next.config.ts, or a postcss.config.* that uses `@tailwindcss/postcss`"
+                .to_string(),
+        ),
+        location: Some(Location {
+            file: Some("next.config.ts".to_string()),
+            ..Location::default()
+        }),
+    });
+}
+
 /// Reads a file, swallowing any error so the report never stops.
 fn read(path: impl AsRef<Path>) -> Option<String> {
     std::fs::read_to_string(path).ok()
@@ -191,9 +227,11 @@ fn read(path: impl AsRef<Path>) -> Option<String> {
 /// Whether `aarshi.toml` sets the key, parsed loosely: a line starts with
 /// the key and carries whatever spaces around its `=`.
 fn has_key(content: &str, key: &str) -> bool {
-    content
-        .lines()
-        .any(|line| line.trim().strip_prefix(key).is_some_and(|rest| rest.trim_start().starts_with('=')))
+    content.lines().any(|line| {
+        line.trim()
+            .strip_prefix(key)
+            .is_some_and(|rest| rest.trim_start().starts_with('='))
+    })
 }
 
 /// The destination of the redirect whose `source` is `"/"`, as written in
@@ -268,7 +306,9 @@ fn check_site_url(content: &str, config: &Config, findings: &mut Vec<Finding>) {
     let Some(line) = content.lines().find(|line| line.contains("SITE_URL")) else {
         return;
     };
-    let quoted = line.split_once('"').and_then(|(_, rest)| rest.split_once('"'));
+    let quoted = line
+        .split_once('"')
+        .and_then(|(_, rest)| rest.split_once('"'));
     let Some((declared, _)) = quoted else {
         return;
     };
@@ -325,7 +365,10 @@ fn check_imports(
             dimension: Dimension::Config,
             rule: "config.import-broken",
             severity: Severity::Error,
-            summary: format!("{file} imports `{}`, but the file does not exist", import.module),
+            summary: format!(
+                "{file} imports `{}`, but the file does not exist",
+                import.module
+            ),
             detail: None,
             location: Some(Location {
                 file: Some(file.to_string()),

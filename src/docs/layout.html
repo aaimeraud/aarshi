@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" type="image/png" href="../aarshi-icon.png">
+  <script>
+    (function () {
+      var saved = localStorage.getItem("aarshi-theme");
+      if (saved) document.documentElement.dataset.theme = saved;
+    })();
+  </script>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <a href="{{repository_url}}" target="_blank" rel="noopener" title="{{repository_label}}"><img src="../aarshi-icon.png" alt="" width="32" height="32">aarshi</a>
+      <a class="repo" href="{{repository_url}}" target="_blank" rel="noopener">{{repository_label}} ↗</a>
+    </div>
+    <nav aria-label="{{sidebar_label}}">
+      <ul>
+{{sidebar}}
+      </ul>
+    </nav>
+    <nav class="lang" aria-label="{{language_label}}">
+{{switch}}
+    </nav>
+    <button type="button" class="theme" id="theme" data-dark="{{theme_dark}}" data-light="{{theme_light}}">{{theme_dark}}</button>
+  </aside>
+  <main>
+{{content}}
+    <nav class="pager" aria-label="{{navigation_label}}">{{pager}}</nav>
+  </main>
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var button = document.getElementById("theme");
+    function current() {
+      if (root.dataset.theme) return root.dataset.theme;
+      return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    function refresh() {
+      button.textContent = current() === "dark" ? button.dataset.light : button.dataset.dark;
+    }
+    button.addEventListener("click", function () {
+      var next = current() === "dark" ? "light" : "dark";
+      root.dataset.theme = next;
+      localStorage.setItem("aarshi-theme", next);
+      refresh();
+    });
+    refresh();
+  })();
+</script>
+</body>
+</html>

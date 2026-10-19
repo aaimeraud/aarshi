@@ -1,0 +1,54 @@
+<h1>Contributing</h1>
+<p class="lead">aarshi is a small project, and every useful report, idea or fix helps. This page explains where to talk about aarshi, what makes a good issue, and how to propose a change.</p>
+
+<h2>Report a bug or ask for a feature</h2>
+<p>Open an issue on the <a href="https://github.com/aaimeraud/aarshi/issues">GitHub repository</a>. There is no issue template yet, so the page is free-form: give enough detail for someone else to reproduce the problem.</p>
+<p>A good issue answers these questions:</p>
+<ol class="steps">
+  <li><strong>What command did you run?</strong> Copy it exactly, flags included, for example <code>aarshi add -s team about</code>.</li>
+  <li><strong>Which version and system?</strong> The output of <code>aarshi --version</code>, and your operating system.</li>
+  <li><strong>What did you expect, and what happened?</strong> Paste the full output of the command, not a summary of it.</li>
+  <li><strong>Is it about a project?</strong> Add the output of <code>aarshi status --json</code> run inside that project. Remove anything private first, such as a site URL you do not want to share.</li>
+</ol>
+<p>Give the issue a short title that names the command or the screen concerned, for example <em>add -p: page created without a sitemap entry</em>.</p>
+
+<h2>Suggest a feature</h2>
+<p>Describe the problem before the solution. What were you trying to do, and what did it cost you to do it by hand? A proposed command or flag is welcome, but the problem is what decides whether it is accepted.</p>
+
+<h2>Find something to work on</h2>
+<ul>
+  <li><strong>Documentation.</strong> A sentence that is unclear, a missing example, a typo. Every page exists in English and French: fix both, or say in the issue that you can only do one.</li>
+  <li><strong>A status rule.</strong> A new check needs three things: a rule name in the right subject, an entry in <code>CONVENTIONS.md</code> and <code>CONVENTIONS.fr.md</code>, and a test in <code>tests/cli.rs</code>.</li>
+  <li><strong>A bug.</strong> Any issue labelled as a bug is a good first pick, once you can reproduce it.</li>
+</ul>
+
+<h2>Propose a change</h2>
+<ol class="steps">
+  <li>Start from the latest code, on a branch with a clear name, for example <code>fix/add-section-prompt</code>.</li>
+  <li>Make the change and add or update a test for it.</li>
+  <li>Run the checks before you push:
+    <pre><code>cargo fmt
+cargo test</code></pre>
+  </li>
+  <li>Open a pull request. Say what changed and why, in a few sentences, and link the issue it answers.</li>
+</ol>
+
+<h2>Commit messages</h2>
+<p>Each commit message starts with a type and a scope, then a short summary:</p>
+<pre><code>fix(status): exit 2 when aarshi.toml cannot be analyzed
+docs(commands): explain aarshi add step by step</code></pre>
+<p>The types you will meet most are <code>feat</code>, <code>fix</code>, <code>docs</code>, <code>refactor</code> and <code>test</code>.</p>
+
+<h2>Rules that apply to every change</h2>
+<dl>
+  <dt>Languages</dt>
+  <dd>Code and comments are in English. The CLI prints in English. The documentation (README, CONVENTIONS and these pages) is written in English <em>and</em> French, and both versions change together.</dd>
+  <dt>Comments</dt>
+  <dd>Short, and only where the behaviour is not obvious from the code. Public Rust functions have a <code>///</code> doc comment.</dd>
+  <dt>Design decisions</dt>
+  <dd>Specification work is kept as numbered tickets in the <code>issues/</code> folder (<code>NNNN-slug.md</code>), with a header that gives their labels, status and parent. A change of behaviour is easier to review when its ticket is linked.</dd>
+</dl>
+
+<div class="card tip">
+  <strong>Not sure?</strong> Open an issue first and describe what you want to do. A short discussion before the code saves time on both sides.
+</div>

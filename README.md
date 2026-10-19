@@ -16,6 +16,7 @@ Every command asks for the values it needs when they are not given as arguments.
 - `aarshi add -p <page>`: adds a page.
 - `aarshi add -c <name>`: adds a starter component in `components/custom/`.
 - `aarshi add-lang <code>`: adds a language (e.g. `de`) to an existing project. Creates its dictionary with empty values and updates the language list.
+- `aarshi docs`: writes the documentation (HTML, embedded in the binary) to a temporary folder, emptied on every call, and opens it in the browser. The page is in French when the system language starts with `fr`, in English otherwise.
 - `aarshi icons`: lists the `.svg` files of `components/icons/` as checkboxes and converts the selected ones to React components (`--all` converts every file without asking). `class` becomes `className`, attributes become camelCase, inline styles become objects, and simple values become Tailwind classes (`width`/`height` to `size-*`, `fill="currentColor"` to `fill-current`, `fill="none"` to `fill-none`, `stroke="currentColor"` to `stroke-current`). An existing component is never overwritten.
 
 ### aarshi status
@@ -36,7 +37,7 @@ The catalogue of rules verified by `status` is listed by dimension in [`CONVENTI
 - Created with `create-next-app`, using explicit flags: TypeScript, Tailwind, App Router, no `src/`, ESLint, `AGENTS.md`. Agent feedback and Cache Components are off by default and can be enabled by a flag.
 - Telemetry is disabled for the project: `NEXT_TELEMETRY_DISABLED=1` is set during creation and written to the project's `.env`. The global Next.js configuration is not changed.
 - Languages: chosen during `setup` among fr, en, es, ja, ko and de (fr and en are preselected, and `setup` then asks which one is the default). The first language of the list is the default one. The list is set in the user config (`~/.config/aarshi/config.toml`) and can be overridden per project by `aarshi.toml` at the project root, which replaces the list. Every language has a prefix (`/fr`, `/en`), and `/` redirects to the default language. Text direction is derived per language (ar, he, fa are RTL).
-- One root layout under `app/[locale]/` sets `lang` and `dir`. The language switcher in the header is built from `ButtonGroup`, and its links take the button styles, so it keeps link semantics and changes language with client-side navigation.
+- One root layout under `app/[locale]/` sets `lang` and `dir`. The language switcher in the header is a Base UI `Menu` (one item per language, rendered as a link), so it changes language with client-side navigation and works with or without shadcn.
 - Components: `shadcn` (styled, Base UI based, the default) or Base UI directly. `cn` comes from `@sglara/cn`. `components/custom/` holds the project's own components and `components/icons/` the converted SVGs.
 - The sitemap is updated through comment markers in `app/sitemap.ts`.
 

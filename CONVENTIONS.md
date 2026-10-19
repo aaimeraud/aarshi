@@ -26,7 +26,8 @@ These are the invariants a generated project must satisfy; `aarshi status` verif
 
 #### config
 
-- `config.file-missing` (`error`): a base file or folder is missing (`app/[locale]/layout.tsx`, `app/sitemap.ts`, `app/robots.ts`, `lib/site.ts`, `lib/i18n/config.ts`, `lib/i18n/index.ts`, `components/language-switcher.tsx`, `tsconfig.json`, `eslint.config.mjs`, `postcss.config.mjs`, `next.config.ts`, `components/custom/`, `components/icons/`).
+- `config.file-missing` (`error`): a base file or folder is missing (`app/[locale]/layout.tsx`, `app/sitemap.ts`, `app/robots.ts`, `lib/site.ts`, `lib/i18n/config.ts`, `lib/i18n/index.ts`, `components/language-switcher.tsx`, `tsconfig.json`, `eslint.config.mjs`, `next.config.ts`, `components/custom/`, `components/icons/`).
+- `config.tailwind-missing` (`error`): Tailwind is wired neither by `@tailwindcss/turbopack` in `next.config.ts` nor by a `postcss.config.*` that uses `@tailwindcss/postcss`.
 - `config.marker-missing` (`error`): the `// aarshi:pages:end` marker is missing from `app/sitemap.ts`.
 - `config.next-config-redirect` (`error`): the `"/"` redirect of `next.config.ts` is inconsistent with `languages[0]`.
 - `config.project-file-incomplete` (`todo`): a persisted key is missing from `aarshi.toml`.

@@ -16,6 +16,7 @@ Chaque commande demande les valeurs qui ne sont pas passées en argument. Passer
 - `aarshi add -p <page>` : ajoute une page.
 - `aarshi add -c <nom>` : ajoute un composant de départ dans `components/custom/`.
 - `aarshi add-lang <code>` : ajoute une langue (par ex. `de`) à un projet existant. Crée son dictionnaire avec des valeurs vides et met à jour la liste des langues.
+- `aarshi docs` : écrit la documentation (HTML, incluse dans le binaire) dans un dossier temporaire, vidé à chaque appel, et l'ouvre dans le navigateur. La page est en français quand la langue du système commence par `fr`, en anglais sinon.
 - `aarshi icons` : liste les fichiers `.svg` de `components/icons/` sous forme de cases à cocher et convertit ceux qui sont sélectionnés en composants React (`--all` convertit tout sans rien demander). `class` devient `className`, les attributs passent en camelCase, les styles en ligne deviennent des objets, et les valeurs simples passent en classes Tailwind (`width`/`height` vers `size-*`, `fill="currentColor"` vers `fill-current`, `fill="none"` vers `fill-none`, `stroke="currentColor"` vers `stroke-current`). Un composant existant n'est jamais écrasé.
 
 ### aarshi status
@@ -36,7 +37,7 @@ Le catalogue des règles vérifiées par `status` est listé par dimension dans 
 - Créé avec `create-next-app`, avec des flags explicites : TypeScript, Tailwind, App Router, sans `src/`, ESLint, `AGENTS.md`. L'agent feedback et les Cache Components sont désactivés par défaut et peuvent être activés par un flag.
 - Télémétrie désactivée pour le projet : `NEXT_TELEMETRY_DISABLED=1` est défini pendant la création, puis écrit dans le `.env` du projet. La configuration globale de Next.js n'est pas modifiée.
 - Langues : choisies pendant `setup` parmi fr, en, es, ja, ko et de (fr et en sont précochées, puis `setup` demande laquelle est la langue par défaut). La première langue de la liste est la langue par défaut. La liste se règle dans la config utilisateur (`~/.config/aarshi/config.toml`) et peut être remplacée par projet grâce à `aarshi.toml` à la racine du projet, qui remplace la liste. Chaque langue a un préfixe (`/fr`, `/en`), et `/` redirige vers la langue par défaut. Le sens d'écriture est déduit de chaque langue (ar, he, fa sont RTL).
-- Un seul layout racine sous `app/[locale]/` définit `lang` et `dir`. Le sélecteur de langue dans l'en-tête est construit avec `ButtonGroup`, et ses liens reprennent les styles du bouton, donc il garde la sémantique d'un lien et change de langue par navigation côté client.
+- Un seul layout racine sous `app/[locale]/` définit `lang` et `dir`. Le sélecteur de langue dans l'en-tête est un `Menu` de Base UI (une entrée par langue, rendue en lien), donc il change de langue par navigation côté client et fonctionne avec ou sans shadcn.
 - Composants : `shadcn` (stylisé, basé sur Base UI, par défaut) ou Base UI directement. `cn` vient de `@sglara/cn`. `components/custom/` contient les composants propres au projet et `components/icons/` les SVG convertis.
 - Le sitemap est mis à jour via des marqueurs de commentaire dans `app/sitemap.ts`.
 

@@ -1,0 +1,34 @@
+<h1>Dépannage</h1>
+<p class="lead">Les messages ci-dessous sont ceux que l'on rencontre le plus souvent. Chacun indique ce qu'il signifie et quoi faire.</p>
+
+<h2>« no aarshi.toml in this folder »</h2>
+<p>Vous n'êtes pas dans un projet créé par <code>aarshi setup</code>. Placez-vous d'abord dans le dossier du projet (celui qui contient <code>aarshi.toml</code>), puis relancez la commande.</p>
+
+<h2>« Tailwind is not wired »</h2>
+<p><code>aarshi status</code> signale ce message quand les styles ne seraient pas compilés. Utilisez l'une des deux façons de brancher Tailwind CSS 4 :</p>
+<ul>
+  <li>dans <code>next.config.ts</code>, le loader Turbopack <code>@tailwindcss/turbopack</code> pour les fichiers <code>*.css</code> ;</li>
+  <li>ou un fichier <code>postcss.config.*</code> qui utilise le plugin <code>@tailwindcss/postcss</code>.</li>
+</ul>
+<p>Une seule suffit.</p>
+
+<h2>« use -s &lt;section&gt; &lt;page&gt; for a section, -p &lt;page&gt; for a page »</h2>
+<p><code>aarshi add &lt;nom&gt;</code> sans option ne sait pas quoi ajouter. Choisissez l'option : <code>-p</code> pour une page, <code>-s</code> pour une section, <code>-c</code> pour un composant. Ou lancez <code>aarshi add</code> seul et répondez au menu.</p>
+
+<h2>« page `…` does not exist »</h2>
+<p>Vous avez demandé une section dans une page absente de <code>views/</code>. aarshi demande s'il faut la créer : répondez <code>y</code> pour créer la page et y ajouter la section, ou <code>n</code> pour arrêter sans rien modifier.</p>
+
+<h2>Valeurs vides signalées comme <code>todo</code></h2>
+<p>Un dictionnaire contient des clés sans texte, typiquement après <code>aarshi add-lang</code>. Ce n'est pas une erreur, et le code de sortie reste <code>0</code>. Remplissez les valeurs dans <code>lib/i18n/dictionaries/&lt;code&gt;.ts</code>. Lancez <code>aarshi status --errors-only</code> pour les masquer pendant le travail.</p>
+
+<h2>« missing <code>components/ui/…</code> »</h2>
+<p>Les composants d'interface attendus par la clé <code>ui</code> d'<a href="config.html"><code>aarshi.toml</code></a> ne sont pas là. Ils sont écrits par <code>aarshi setup</code> : shadcn installe <code>button</code> et <code>button-group</code>, et Base UI les écrit à partir de ses propres modèles. Restaurez le fichier manquant depuis un autre projet créé avec la même valeur de <code>ui</code>, ou lancez <code>aarshi setup</code> dans un nouveau dossier et copiez le fichier.</p>
+
+<h2>Code de sortie 2 avec <code>aarshi status</code></h2>
+<p>Le projet ne peut pas être lu. Le message sur la sortie d'erreur indique la cause : <code>aarshi.toml</code> est absent, illisible, ou contient une clé inconnue. Corrigez ce fichier, puis relancez la vérification.</p>
+
+<h2>La documentation ne s'ouvre pas</h2>
+<p><code>aarshi docs</code> écrit les pages dans un dossier temporaire et affiche son chemin. Si le navigateur ne s'ouvre pas tout seul, ouvrez à la main le fichier <code>index.html</code> du dossier <code>en</code> ou <code>fr</code> de ce chemin.</p>
+
+<h2>Toujours bloqué ?</h2>
+<p>Lancez <code>aarshi status --json</code> et gardez la sortie : elle liste chaque constat avec le nom de sa règle, ce qui est la première information à donner quand on demande de l'aide. Les règles sont listées dans le fichier <code>CONVENTIONS.fr.md</code> du dépôt.</p>

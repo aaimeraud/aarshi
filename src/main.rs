@@ -1,6 +1,7 @@
 mod add;
 mod config;
 mod dictionary;
+mod docs;
 mod icons;
 mod lang;
 mod output;
@@ -40,6 +41,8 @@ enum Command {
     /// Report what is missing or wrong in the Next.js project
     #[command(visible_alias = "check")]
     Status(StatusArgs),
+    /// Open the aarshi documentation in the browser
+    Docs,
 }
 
 #[derive(Args)]
@@ -173,6 +176,7 @@ fn run() -> Result<()> {
         }),
         Command::AddLang { code } => lang::run(code),
         Command::Icons { all } => icons::run(all),
+        Command::Docs => docs::run(),
         Command::Status(args) => status::run(status::Options {
             dimensions: args.dimension,
             errors_only: args.errors_only,
