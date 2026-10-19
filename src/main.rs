@@ -10,6 +10,7 @@ mod remove;
 mod setup;
 mod status;
 mod templates;
+mod update;
 
 use anyhow::Result;
 use clap::{ArgGroup, Args, Parser, Subcommand};
@@ -48,6 +49,8 @@ enum Command {
     Remove(RemoveArgs),
     /// Put back what the last `remove` took out
     Restore(RestoreArgs),
+    /// Replace this binary with the latest GitHub release
+    Update(UpdateArgs),
 }
 
 #[derive(Args)]
@@ -65,6 +68,13 @@ struct RestoreArgs {
     /// Do not ask for confirmation
     #[arg(short = 'y', long)]
     yes: bool,
+}
+
+#[derive(Args)]
+struct UpdateArgs {
+    /// Report the latest version without installing it
+    #[arg(long)]
+    check: bool,
 }
 
 #[derive(Args)]
@@ -204,6 +214,7 @@ fn run() -> Result<()> {
             yes: args.yes,
         }),
         Command::Restore(args) => remove::restore(args.yes),
+        Command::Update(args) => update::run(update::UpdateOptions { check: args.check }),
         Command::Status(args) => status::run(status::Options {
             dimensions: args.dimension,
             errors_only: args.errors_only,
