@@ -2,6 +2,7 @@ mod components;
 mod config;
 mod dependencies;
 mod i18n;
+mod imports;
 mod pages;
 mod render;
 mod sections;
