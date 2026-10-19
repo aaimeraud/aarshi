@@ -1,8 +1,6 @@
 //! The imports of a project file, read textually, and what each one points
 //! at. The module reads and resolves; the dimensions decide which findings an
 //! import raises.
-// Unwired until the dimensions migrate to it; the migration removes this.
-#![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
 
@@ -18,8 +16,24 @@ pub struct ResolvedImport {
     /// The text between the quotes, without any `with` clause.
     pub module: String,
     /// The default name and the `{ A, B }` members, `type ` markers dropped.
+    #[allow(dead_code)] // read by the `sections` dimension (ticket 0027) next.
     pub names: Vec<String>,
     pub target: Target,
+}
+
+impl ResolvedImport {
+    /// An npm package, whose declaration is the `dependencies` dimension's business.
+    pub fn is_bare(&self) -> bool {
+        self.target == Target::Bare
+    }
+
+    /// A module or asset of the project that exists.
+    pub fn is_provided(&self) -> bool {
+        matches!(
+            self.target,
+            Target::Local { found: Some(_), .. } | Target::Asset { found: Some(_) }
+        )
+    }
 }
 
 /// Where an import points. Paths are relative to the project root.

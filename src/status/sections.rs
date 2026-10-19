@@ -4,6 +4,7 @@
 
 use std::{collections::HashSet, fs, path::Path};
 
+use super::imports::imports_of;
 use crate::{
     config::Config,
     dictionary,
@@ -38,14 +39,12 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
         let Ok(content) = fs::read_to_string(root.join(&file)) else {
             continue;
         };
-        for import in pages::imports(&content) {
+        for import in imports_of(root, &file, &content) {
             let Some(rest) = import.module.strip_prefix("./sections/") else {
                 continue;
             };
             let target = rest.strip_suffix(".tsx").unwrap_or(rest);
-            if target.is_empty()
-                || pages::resolve_module(root, &file, &import.module).is_some()
-            {
+            if target.is_empty() || import.is_provided() {
                 continue;
             }
             findings.push(Finding {
@@ -132,7 +131,7 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
             continue;
         };
         let alias = format!("@/views/{page}/sections/");
-        let imported: HashSet<String> = pages::imports(&content)
+        let imported: HashSet<String> = imports_of(root, &file, &content)
             .into_iter()
             .filter_map(|import| {
                 let rest = import
@@ -169,11 +168,8 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
             let Ok(content) = fs::read_to_string(root.join(&file)) else {
                 continue;
             };
-            for import in pages::imports(&content) {
-                if pages::is_bare(&import.module) {
-                    continue;
-                }
-                if pages::resolve_module(root, &file, &import.module).is_some() {
+            for import in imports_of(root, &file, &content) {
+                if import.is_bare() || import.is_provided() {
                     continue;
                 }
                 findings.push(Finding {

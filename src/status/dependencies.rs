@@ -6,7 +6,8 @@ use std::{fs, path::Path};
 
 use serde_json::Value;
 
-use super::pages::{imports, is_bare, routes, sections, views};
+use super::imports::imports_of;
+use super::pages::{routes, sections, views};
 use crate::{
     config::Config,
     status::{Dimension, Finding, Location, Severity},
@@ -82,10 +83,10 @@ fn report_packages(root: &Path, config: &Config, declared: &[String], findings: 
         let Ok(content) = fs::read_to_string(root.join(&file)) else {
             continue;
         };
-        for import in imports(&content) {
+        for import in imports_of(root, &file, &content) {
             // `@/x`, `./x` and `../x` name a file another dimension checks;
             // anything else names an npm package.
-            if !is_bare(&import.module) {
+            if !import.is_bare() {
                 continue;
             }
             let name = package_name(&import.module);

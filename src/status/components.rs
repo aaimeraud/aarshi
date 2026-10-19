@@ -8,9 +8,10 @@
 
 use std::{fs, path::Path};
 
+use super::imports::imports_of;
 use crate::{
     config::Config,
-    status::{Dimension, Finding, Location, Severity, pages},
+    status::{Dimension, Finding, Location, Severity},
 };
 
 /// Every icon of `components/icons/` that still waits for its generated
@@ -88,11 +89,8 @@ pub fn collect(root: &Path, _config: &Config, findings: &mut Vec<Finding>) {
         let Ok(content) = fs::read_to_string(root.join(&file)) else {
             continue;
         };
-        for import in pages::imports(&content) {
-            if pages::is_bare(&import.module) {
-                continue;
-            }
-            if pages::resolve_module(root, &file, &import.module).is_some() {
+        for import in imports_of(root, &file, &content) {
+            if import.is_bare() || import.is_provided() {
                 continue;
             }
             findings.push(Finding {

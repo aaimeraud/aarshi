@@ -5,9 +5,10 @@
 use std::{
     collections::HashSet,
     fs,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
+use super::imports::{ResolvedImport, imports_of};
 use crate::{
     config::Config,
     dictionary,
@@ -109,144 +110,6 @@ pub fn sections(root: &Path, page: &str) -> Vec<String> {
     names
 }
 
-/// One import read as text: the module between the quotes and the specifiers
-/// it brings in.
-pub struct Import {
-    /// The text between the quotes, without the trailing `;`.
-    pub module: String,
-    /// Specifiers: the default name and the `{ A, B }` members, with `type `
-    /// markers dropped.
-    #[allow(dead_code)] // read by the `sections` dimension (ticket 0027) next.
-    pub names: Vec<String>,
-}
-
-/// The imports of a TypeScript file, one per line, in order. Textual only, in
-/// the style of `dictionary::entries`: multi-line imports are not understood.
-pub fn imports(content: &str) -> Vec<Import> {
-    content.lines().filter_map(parse_import).collect()
-}
-
-fn parse_import(line: &str) -> Option<Import> {
-    let line = line.trim();
-    let rest = line.strip_prefix("import ")?.trim_start();
-    let (specifiers, module) = match rest.split_once(" from ") {
-        Some((specifiers, module)) => (Some(specifiers.trim()), module),
-        None => (None, rest),
-    };
-    // Import assertions (`import "x" with { ... }`) are not part of the path.
-    let module = module
-        .split_once(" with ")
-        .map(|(path, _)| path)
-        .unwrap_or(module);
-    let module = module
-        .trim()
-        .trim_end_matches(';')
-        .trim()
-        .trim_matches(['"', '\'']);
-    if module.is_empty() {
-        return None;
-    }
-    Some(Import {
-        module: module.to_string(),
-        names: specifiers.map(names_of).unwrap_or_default(),
-    })
-}
-
-fn names_of(specifiers: &str) -> Vec<String> {
-    let mut names = Vec::new();
-    match specifiers.find('{') {
-        Some(brace) => {
-            // An optional default import stands before the braces.
-            let default = specifiers[..brace].trim().trim_matches(',').trim();
-            if let Some(name) = default.split_whitespace().next()
-                && name != "type" && name != "*" {
-                names.push(name.to_string());
-            }
-            if let Some(close) = specifiers[brace..].find('}') {
-                for member in specifiers[brace + 1..brace + close].split(',') {
-                    let member = member.trim();
-                    let member = member.strip_prefix("type ").unwrap_or(member).trim();
-                    let member = member.split_whitespace().next().unwrap_or(member);
-                    if !member.is_empty() {
-                        names.push(member.to_string());
-                    }
-                }
-            }
-        }
-        None => {
-            if let Some(name) = specifiers.split_whitespace().next()
-                && name != "type" && name != "*" {
-                names.push(name.to_string());
-            }
-        }
-    }
-    names
-}
-
-/// The file an import module points to: `@/x` is the project root, `./x` and
-/// `../x` sit next to `importer` (a project-relative file). Any other target
-/// is a bare package, the business of the `dependencies` dimension.
-/// TypeScript's suffixes are tried in turn: exact, `.ts`, `.tsx`, then an
-/// `index` file.
-pub fn resolve_module(root: &Path, importer: &str, module: &str) -> Option<PathBuf> {
-    if module.is_empty() {
-        return None;
-    }
-    // The alias resets the path to the project root; a relative walk starts
-    // next to the importer, so `..` cannot escape the project root between
-    // here and the candidate files.
-    let (aliased, under) = if let Some(under) = module.strip_prefix("@/") {
-        (true, under)
-    } else if module.starts_with("./")
-        || module.starts_with("../")
-        || module.strip_prefix('.') == Some("")
-    {
-        (false, module)
-    } else {
-        // A bare package (`next`, `@sglara/cn`, …) never resolves from the
-        // filesystem of the project; it belongs to `dependencies`.
-        return None;
-    };
-    let mut parts: Vec<String> = if aliased {
-        Vec::new()
-    } else {
-        importer
-            .rsplit_once('/')
-            .map(|(dir, _)| dir)
-            .unwrap_or("")
-            .split('/')
-            .filter(|part| !part.is_empty() && *part != ".")
-            .map(String::from)
-            .collect()
-    };
-    for segment in under.split('/') {
-        match segment {
-            "" | "." => continue,
-            ".." => drop(parts.pop()),
-            _ => parts.push(segment.to_string()),
-        }
-    }
-    let path = root.join(parts.join("/"));
-    [
-        path.clone(),
-        with_suffix(&path, ".ts"),
-        with_suffix(&path, ".tsx"),
-    ]
-    .into_iter()
-    .find(|candidate| candidate.is_file())
-    .or_else(|| {
-        ["index.ts", "index.tsx"]
-            .into_iter()
-            .map(|index| path.join(index))
-            .find(|candidate| candidate.is_file())
-    })
-}
-
-fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
-    let file = path.as_os_str().to_string_lossy().into_owned();
-    PathBuf::from(format!("{file}{suffix}"))
-}
-
 /// The `"/path"` entries listed in `app/sitemap.ts`, in order, quotes
 /// removed. `None` when the file cannot be read: its missing file is a finding
 /// of the `config` dimension, but nothing depends on the entries here.
@@ -270,12 +133,6 @@ pub fn sitemap_entries(root: &Path) -> Option<Vec<String>> {
 }
 
 // --- The pages dimension --------------------------------------------------
-
-/// A module that is neither `@/`-aliased nor relative: it names an npm
-/// package, whose declaration is the `dependencies` dimension's business.
-pub fn is_bare(module: &str) -> bool {
-    !(module.starts_with("@/") || module.starts_with("./") || module.starts_with("../"))
-}
 
 /// Collects the `pages` findings: routes ↔ views both ways, `<page>.title`
 /// keys, sitemap entries, the view import and broken imports in views and
@@ -307,7 +164,7 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
         // The route exists: it must import the view through its alias.
         if let Ok(content) = fs::read_to_string(root.join(&route.file)) {
             let view_module = format!("@/views/{page}/{page}.view");
-            if !imports(&content)
+            if !imports_of(root, &route.file, &content)
                 .iter()
                 .any(|import| import.module == view_module)
             {
@@ -423,11 +280,8 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
     for route in &route_files {
         if let Ok(content) = fs::read_to_string(root.join(&route.file)) {
             let orphan_view = !page_files.contains(&route.page);
-            for import in imports(&content) {
-                if is_bare(&import.module) {
-                    continue;
-                }
-                if resolve_module(root, &route.file, &import.module).is_some() {
+            for import in imports_of(root, &route.file, &content) {
+                if import.is_bare() || import.is_provided() {
                     continue;
                 }
                 // The view a hand-added route waits for is covered by
@@ -444,11 +298,8 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
     for page in &page_files {
         let file = format!("views/{page}/{page}.view.tsx");
         if let Ok(content) = fs::read_to_string(root.join(&file)) {
-            for import in imports(&content) {
-                if is_bare(&import.module) {
-                    continue;
-                }
-                if resolve_module(root, &file, &import.module).is_some() {
+            for import in imports_of(root, &file, &content) {
+                if import.is_bare() || import.is_provided() {
                     continue;
                 }
                 // A dangling view -> section import is the `sections`
@@ -463,7 +314,7 @@ pub fn collect(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
 }
 
 /// Adds one broken-import finding for an unresolved module.
-fn raise_broken_import(findings: &mut Vec<Finding>, file: &str, import: &Import) {
+fn raise_broken_import(findings: &mut Vec<Finding>, file: &str, import: &ResolvedImport) {
     findings.push(Finding {
         dimension: Dimension::Pages,
         rule: "pages.import-broken",

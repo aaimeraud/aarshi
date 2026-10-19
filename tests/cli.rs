@@ -2769,6 +2769,51 @@ fn status_reports_an_orphan_section_as_a_todo() {
 }
 
 #[test]
+fn status_reads_single_quoted_re_exported_and_escaping_imports_of_a_view() {
+    let sandbox = Sandbox::new("pages-import-quotes");
+    let project = pages_project("pages-import-quotes");
+    // A single-quoted import, a re-export and an import climbing above the
+    // project root are read, and none of them resolves to a file.
+    write_view(
+        &project,
+        "about",
+        "import { Tag } from '@/components/custom/tag';\nexport { Z } from \"./nowhere\";\nimport { Up } from \"../../../../../escape\";\n\nconst AboutView = () => null;\n\nexport default AboutView;\n",
+    );
+    write_route(
+        &project,
+        "about",
+        "import AboutView from \"@/views/about/about.view\";\n\nexport default AboutView;\n",
+    );
+    write_dictionary(
+        &project,
+        "fr",
+        &[("home.title", "Accueil"), ("about.title", "À propos")],
+    );
+    write_dictionary(
+        &project,
+        "en",
+        &[("home.title", "Home"), ("about.title", "About")],
+    );
+    write_sitemap(&project, &["/", "/about"]);
+
+    let output = sandbox.run(&project, &["status"]);
+    let report = stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    for module in [
+        "@/components/custom/tag",
+        "./nowhere",
+        "../../../../../escape",
+    ] {
+        assert!(
+            report.contains(&format!(
+                "broken import `{module}` in `views/about/about.view.tsx`"
+            )),
+            "{report}"
+        );
+    }
+}
+
+#[test]
 fn status_reports_a_broken_import_in_a_section() {
     let sandbox = Sandbox::new("sections-import-broken");
     let project = sections_project("sections-import-broken");
