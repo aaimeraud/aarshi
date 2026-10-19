@@ -54,12 +54,20 @@ impl FromStr for Dimension {
     type Err = String;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        Self::ALL.iter().copied().find(|d| d.id() == text).ok_or_else(|| {
-            format!(
-                "unknown dimension `{text}` (expected one of: {})",
-                Self::ALL.iter().map(|d| d.id()).collect::<Vec<_>>().join(", ")
-            )
-        })
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|d| d.id() == text)
+            .ok_or_else(|| {
+                format!(
+                    "unknown dimension `{text}` (expected one of: {})",
+                    Self::ALL
+                        .iter()
+                        .map(|d| d.id())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            })
     }
 }
 
@@ -192,7 +200,6 @@ impl fmt::Display for Exit {
 
 impl std::error::Error for Exit {}
 
-
 /// Functions that fill findings for one dimension, in a fixed order. Each
 /// dimension ticket adds its collector here; the list must stay free of any
 /// early stop so every dimension is always visited.
@@ -218,11 +225,7 @@ pub fn run(options: Options) -> Result<()> {
         .with_context(|| "cannot read the current folder")
         .map_err(|error| Exit::new(2, &format!("cannot analyze aarshi.toml: {error:#}")))?;
     if !crate::config::is_aarshi_project(&root) {
-        return Err(Exit::new(
-            2,
-            "no aarshi.toml in this folder; nothing to check",
-        )
-        .into());
+        return Err(Exit::new(2, "no aarshi.toml in this folder; nothing to check").into());
     }
     // An existing but unreadable or invalid `aarshi.toml` cannot be analyzed
     // either (0011 code contract): it stops like the missing file, code 2.
@@ -236,11 +239,17 @@ pub fn run(options: Options) -> Result<()> {
     }
     findings.sort_by(|a, b| {
         (
-            a.location.as_ref().and_then(|l| l.file.as_deref()).unwrap_or(""),
+            a.location
+                .as_ref()
+                .and_then(|l| l.file.as_deref())
+                .unwrap_or(""),
             a.rule,
         )
             .cmp(&(
-                b.location.as_ref().and_then(|l| l.file.as_deref()).unwrap_or(""),
+                b.location
+                    .as_ref()
+                    .and_then(|l| l.file.as_deref())
+                    .unwrap_or(""),
                 b.rule,
             ))
     });

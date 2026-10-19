@@ -183,7 +183,10 @@ fn report_lockfiles(root: &Path, config: &Config, findings: &mut Vec<Finding>) {
                 "`{lockfile}` is present, but aarshi.toml declares the `{}` package manager",
                 config.package_manager
             ),
-            detail: Some(format!("expected {}", expected_lockfile(&config.package_manager))),
+            detail: Some(format!(
+                "expected {}",
+                expected_lockfile(&config.package_manager)
+            )),
             location: Some(Location {
                 file: Some(lockfile.to_string()),
                 ..Location::default()

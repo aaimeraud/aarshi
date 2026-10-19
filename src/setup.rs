@@ -11,7 +11,8 @@ use crate::{
     add,
     config::{
         self, Config, DEFAULT_SITE_URL, ICONS_LUCIDE, ICONS_NONE, PACKAGE_MANAGERS,
-        PROJECT_CONFIG_FILE, SUPPORTED_LANGUAGES, UI_BASE, UI_SHADCN, validate_icons, validate_site_url, validate_ui,
+        PROJECT_CONFIG_FILE, SUPPORTED_LANGUAGES, UI_BASE, UI_SHADCN, validate_icons,
+        validate_site_url, validate_ui,
     },
     output, project, templates,
 };
@@ -405,7 +406,10 @@ fn generate(root: &Path, config: &Config) -> Result<()> {
         project::create_file(&env_file, "NEXT_TELEMETRY_DISABLED=1\n")?;
     }
     project::create_file(&root.join(PROJECT_CONFIG_FILE), &config.to_project_file())?;
-    project::create_file(&root.join("lib/site.ts"), &templates::site(&config.site_url))?;
+    project::create_file(
+        &root.join("lib/site.ts"),
+        &templates::site(&config.site_url),
+    )?;
     project::create_file(
         &root.join("lib/i18n/config.ts"),
         &templates::i18n_config(languages),

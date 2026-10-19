@@ -2,11 +2,7 @@
 //! a hand-added route without a view, the `<page>.title` key in every
 //! dictionary, sitemap entries, the view import and broken imports.
 
-use std::{
-    collections::HashSet,
-    fs,
-    path::Path,
-};
+use std::{collections::HashSet, fs, path::Path};
 
 use super::imports::{ResolvedImport, imports_of};
 use crate::{
