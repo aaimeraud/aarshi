@@ -18,12 +18,18 @@ A multilingual Next.js site is plumbing before it is content: one route per lang
 
 ## Requirements
 
-- **Rust 1.85 or newer** to build aarshi (edition 2024).
+- **Rust 1.85 or newer** to build aarshi from source (edition 2024). The prebuilt binaries need no toolchain.
 - **Node.js and a package manager** (npm, pnpm, yarn or bun) to create and run the generated site.
 
 ## Install
 
-aarshi is not published on crates.io yet. Build it from the repository:
+Each [GitHub release](https://github.com/aaimeraud/aarshi/releases) carries prebuilt binaries for macOS (Apple silicon and Intel), Linux x86_64 and Windows x86_64. Download the asset for your platform, put it on your `PATH`, then keep it current:
+
+```sh
+aarshi update
+```
+
+`aarshi update --check` reports the latest version without installing it. aarshi is not published on crates.io; to build it from source instead (Rust 1.85 or newer):
 
 ```sh
 git clone https://github.com/aaimeraud/aarshi.git
@@ -87,6 +93,7 @@ Open <http://localhost:3000/fr/about>, then switch to `/en/about`.
 | `aarshi remove` | Lists what aarshi added and removes the selected pages, sections or components. `--all` and `--yes` skip the picking. |
 | `aarshi restore` | Puts back what the last `remove` took out. |
 | `aarshi docs` | Opens the offline documentation in the browser. |
+| `aarshi update [--check]` | Replaces the installed binary with the latest GitHub release. `--check` only reports the available version. |
 
 Every command asks for the values it needs when they are not passed as flags.
 

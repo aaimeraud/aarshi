@@ -26,7 +26,9 @@
 </ul>
 
 <h2>Installer aarshi</h2>
-<p>aarshi est écrit en Rust et n'est pas encore publié. Pour l'instant, compilez-le depuis le dépôt :</p>
+<p>Chaque <a href="https://github.com/aaimeraud/aarshi/releases">release GitHub</a> contient des binaires prêts à l'emploi pour macOS (Apple silicon et Intel), Linux x86_64 et Windows x86_64. Téléchargez celui de votre système, placez-le dans votre <code>PATH</code>, et gardez-le à jour avec :</p>
+<pre><code>aarshi update</code></pre>
+<p><code>aarshi update --check</code> indique si une version plus récente existe, sans l'installer. aarshi n'est pas publié sur crates.io ; pour le compiler depuis les sources à la place, clonez le dépôt et lancez :</p>
 <pre><code>cargo install --path .</code></pre>
 <p>Vérifiez ensuite que la commande répond :</p>
 <pre><code>aarshi --version</code></pre>
