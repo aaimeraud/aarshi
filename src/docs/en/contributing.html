@@ -2,7 +2,7 @@
 <p class="lead">aarshi is a small project, and every useful report, idea or fix helps. This page explains where to talk about aarshi, what makes a good issue, and how to propose a change.</p>
 
 <h2>Report a bug or ask for a feature</h2>
-<p>Open an issue on the <a href="https://github.com/aaimeraud/aarshi/issues">GitHub repository</a>. There is no issue template yet, so the page is free-form: give enough detail for someone else to reproduce the problem.</p>
+<p>Open an issue on the <a href="https://github.com/aaimeraud/aarshi/issues">GitHub repository</a>. Choose the bug report or feature request template; if neither fits, open a blank issue. In every case, give enough detail for someone else to reproduce the problem.</p>
 <p>A good issue answers these questions:</p>
 <ol class="steps">
   <li><strong>What command did you run?</strong> Copy it exactly, flags included, for example <code>aarshi add -s team about</code>.</li>
@@ -28,6 +28,7 @@
   <li>Make the change and add or update a test for it.</li>
   <li>Run the checks before you push:
     <pre><code>cargo fmt
+cargo clippy --all-targets
 cargo test</code></pre>
   </li>
   <li>Open a pull request. Say what changed and why, in a few sentences, and link the issue it answers.</li>
@@ -42,11 +43,11 @@ docs(commands): explain aarshi add step by step</code></pre>
 <h2>Rules that apply to every change</h2>
 <dl>
   <dt>Languages</dt>
-  <dd>Code and comments are in English. The CLI prints in English. The documentation (README, CONVENTIONS and these pages) is written in English <em>and</em> French, and both versions change together.</dd>
+  <dd>Code and comments are in English. The CLI prints in English. The documentation (README, CONTRIBUTING, CONVENTIONS and these pages) is written in English <em>and</em> French, and both versions change together.</dd>
   <dt>Comments</dt>
   <dd>Short, and only where the behaviour is not obvious from the code. Public Rust functions have a <code>///</code> doc comment.</dd>
   <dt>Design decisions</dt>
-  <dd>Specification work is kept as numbered tickets in the <code>issues/</code> folder (<code>NNNN-slug.md</code>), with a header that gives their labels, status and parent. A change of behaviour is easier to review when its ticket is linked.</dd>
+  <dd>A change of behaviour is easier to review when its issue or pull request explains the decision it follows from.</dd>
 </dl>
 
 <div class="card tip">

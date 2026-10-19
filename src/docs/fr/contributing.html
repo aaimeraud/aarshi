@@ -2,7 +2,7 @@
 <p class="lead">aarshi est un petit projet, et chaque signalement, idée ou correction utile compte. Cette page explique où parler d'aarshi, ce qui fait une bonne issue, et comment proposer une modification.</p>
 
 <h2>Signaler un bug ou demander une fonctionnalité</h2>
-<p>Ouvrez une issue sur le <a href="https://github.com/aaimeraud/aarshi/issues">dépôt GitHub</a>. Il n'existe pas encore de modèle d'issue : le texte est libre, mais donnez assez de détails pour que quelqu'un d'autre puisse reproduire le problème.</p>
+<p>Ouvrez une issue sur le <a href="https://github.com/aaimeraud/aarshi/issues">dépôt GitHub</a>. Choisissez le modèle de bug report ou de demande de fonctionnalité ; si aucun ne convient, ouvrez une issue vide. Dans tous les cas, donnez assez de détails pour que quelqu'un d'autre puisse reproduire le problème.</p>
 <p>Une bonne issue répond à ces questions :</p>
 <ol class="steps">
   <li><strong>Quelle commande avez-vous lancée ?</strong> Copiez-la exactement, options comprises, par exemple <code>aarshi add -s equipe a-propos</code>.</li>
@@ -28,6 +28,7 @@
   <li>Faites la modification, et ajoutez ou mettez à jour un test pour elle.</li>
   <li>Lancez les vérifications avant de publier :
     <pre><code>cargo fmt
+cargo clippy --all-targets
 cargo test</code></pre>
   </li>
   <li>Ouvrez une pull request. Expliquez en quelques phrases ce qui change et pourquoi, et liez l'issue à laquelle elle répond.</li>
@@ -42,11 +43,11 @@ docs(commands): explain aarshi add step by step</code></pre>
 <h2>Règles qui valent pour toute modification</h2>
 <dl>
   <dt>Langues</dt>
-  <dd>Le code et les commentaires sont en anglais. La CLI affiche en anglais. La documentation (README, CONVENTIONS et ces pages) est écrite en anglais <em>et</em> en français, et les deux versions changent ensemble.</dd>
+  <dd>Le code et les commentaires sont en anglais. La CLI affiche en anglais. La documentation (README, CONTRIBUTING, CONVENTIONS et ces pages) est écrite en anglais <em>et</em> en français, et les deux versions changent ensemble.</dd>
   <dt>Commentaires</dt>
   <dd>Courts, et seulement là où le comportement n'est pas évident dans le code. Les fonctions Rust publiques ont un commentaire de documentation <code>///</code>.</dd>
   <dt>Décisions de conception</dt>
-  <dd>Le travail de spécification est noté sous forme de tickets numérotés dans le dossier <code>issues/</code> (<code>NNNN-slug.md</code>), avec un en-tête qui donne leurs labels, leur statut et leur parent. Une modification de comportement est plus facile à relire quand son ticket est lié.</dd>
+  <dd>Une modification de comportement est plus facile à relire quand son issue ou sa pull request explique la décision dont elle découle.</dd>
 </dl>
 
 <div class="card tip">
